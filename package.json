@@ -1,0 +1,21 @@
+{
+  "name": "agent-skill-cast",
+  "version": "1.0.0",
+  "description": "Agent Skill Cast - AI Agent Skill Sharing & Sync Tool",
+  "bin": {
+    "cast": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "agent",
+    "skill",
+    "cast",
+    "prompt",
+    "sync",
+    "claude"
+  ],
+  "author": "Shin-JaeHeon",
+  "license": "ISC"
+}
