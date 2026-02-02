@@ -546,7 +546,7 @@ ${styles.bright}사용법:${styles.reset}
 
 ${styles.cyan}예시:${styles.reset}
   cast clone https://github.com/ComposioHQ/awesome-claude-skills
-  cast use awesome-claude-skills/lead-research-assistant
+  cast use awesome-claude-skills/connect
   cast publish my-custom-skill
             `);
     }
