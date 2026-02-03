@@ -97,27 +97,34 @@ function findSkills(sourceDir) {
     const skills = [];
     const addedSkills = new Set(); // 중복 방지
 
-    // 1단계: .claude/skills 폴더 검색
-    const claudeSkillsDir = path.join(sourceDir, '.claude', 'skills');
-    if (fs.existsSync(claudeSkillsDir)) {
-        const claudeItems = fs.readdirSync(claudeSkillsDir);
-        claudeItems.forEach(item => {
-            if (item.startsWith('.') || item === 'node_modules') return;
+    // 1단계: 에이전트 전용 폴더 검색 (.claude, .gemini, .codex)
+    const agentFolders = [
+        { dir: '.claude/skills', label: 'claude' },
+        { dir: '.gemini/skills', label: 'gemini' },
+        { dir: '.codex/skills', label: 'codex' }
+    ];
 
-            const itemPath = path.join(claudeSkillsDir, item);
-            try {
-                const stat = fs.statSync(itemPath);
-                if (stat.isDirectory()) {
-                    // SKILL.md가 있는지 확인 (선택적)
-                    const skillMdPath = path.join(itemPath, 'SKILL.md');
-                    if (fs.existsSync(skillMdPath)) {
-                        skills.push({ name: item, path: itemPath, location: 'claude' });
-                        addedSkills.add(item);
+    agentFolders.forEach(folder => {
+        const fullPath = path.join(sourceDir, folder.dir);
+        if (fs.existsSync(fullPath)) {
+            const items = fs.readdirSync(fullPath);
+            items.forEach(item => {
+                if (item.startsWith('.') || item === 'node_modules') return;
+
+                const itemPath = path.join(fullPath, item);
+                try {
+                    const stat = fs.statSync(itemPath);
+                    if (stat.isDirectory()) {
+                        const skillMdPath = path.join(itemPath, 'SKILL.md');
+                        if (fs.existsSync(skillMdPath)) {
+                            skills.push({ name: item, path: itemPath, location: folder.label });
+                            addedSkills.add(item);
+                        }
                     }
-                }
-            } catch (e) { /* 무시 */ }
-        });
-    }
+                } catch (e) { /* 무시 */ }
+            });
+        }
+    });
 
     // 2단계: 소스 루트에서 SKILL.md가 포함된 폴더 검색
     const rootItems = fs.readdirSync(sourceDir);
@@ -327,7 +334,10 @@ ${styles.magenta}   _______  _______  _______
 
             log(`\n📂 '${sourceName}'의 스킬 목록:`, styles.bright);
             skills.forEach((skill, i) => {
-                const locationTag = skill.location === 'claude' ? styles.cyan + '[claude]' : styles.magenta + '[root]';
+                const labelColor = skill.location === 'claude' ? styles.cyan :
+                    skill.location === 'gemini' ? styles.yellow :
+                        skill.location === 'codex' ? styles.magenta : styles.bright;
+                const locationTag = labelColor + `[${skill.location}]`;
                 console.log(`  [${i + 1}] 📁 ${skill.name} ${locationTag}${styles.reset}`);
             });
 
@@ -352,16 +362,22 @@ ${styles.magenta}   _______  _______  _______
         // 스킬 경로 결정: 직접 제공되었거나 탐색
         let sourcePath = skillPath;
         if (!sourcePath) {
-            // 2단계 검색: .claude/skills 우선, 그 다음 skill-* 패턴
+            // 2단계 검색: 에이전트 폴더 우선, 그 다음 skill-* 패턴
             const sourceDir = path.join(SOURCES_DIR, sourceName);
-            const claudeSkillPath = path.join(sourceDir, '.claude', 'skills', skillName);
-            const rootSkillPath = path.join(sourceDir, skillName);
+            const searchPaths = [
+                path.join(sourceDir, '.claude', 'skills', skillName),
+                path.join(sourceDir, '.gemini', 'skills', skillName),
+                path.join(sourceDir, '.codex', 'skills', skillName),
+                path.join(sourceDir, skillName)
+            ];
 
-            if (fs.existsSync(claudeSkillPath) && fs.existsSync(path.join(claudeSkillPath, 'SKILL.md'))) {
-                sourcePath = claudeSkillPath;
-            } else if (fs.existsSync(rootSkillPath) && fs.existsSync(path.join(rootSkillPath, 'SKILL.md'))) {
-                sourcePath = rootSkillPath;
-            } else {
+            for (const p of searchPaths) {
+                if (fs.existsSync(p) && fs.existsSync(path.join(p, 'SKILL.md'))) {
+                    sourcePath = p;
+                    break;
+                }
+            }
+            if (!sourcePath) {
                 return log(`❌ 스킬을 찾을 수 없습니다: ${skillKey}`, styles.red);
             }
         }
@@ -425,8 +441,18 @@ ${styles.magenta}   _______  _______  _______
                     if (parts.length >= 2) {
                         const sourceDir = path.join(SOURCES_DIR, parts[0]);
                         const skillName = parts.slice(1).join('/');
-                        const claudePath = path.join(sourceDir, '.claude', 'skills', skillName);
-                        if (fs.existsSync(claudePath)) sourcePath = claudePath;
+                        const searchPaths = [
+                            path.join(sourceDir, '.claude', 'skills', skillName),
+                            path.join(sourceDir, '.gemini', 'skills', skillName),
+                            path.join(sourceDir, '.codex', 'skills', skillName),
+                            path.join(sourceDir, skillName)
+                        ];
+                        for (const p of searchPaths) {
+                            if (fs.existsSync(p)) {
+                                sourcePath = p;
+                                break;
+                            }
+                        }
                     }
                 }
             }
