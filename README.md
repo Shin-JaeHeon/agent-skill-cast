@@ -63,6 +63,7 @@ cast source sync
 | `cast source remove <name>` | Remove a registered source. |
 | `cast use` | Interactively select and install skills. |
 | `cast use <source>/<skill>` | Install a specific skill directly. |
+| `cast use ... --claude` | Install only to `.claude/skills` (must exist). |
 | `cast list` | Show all currently installed skills in this project. |
 | `cast remove <skill>` | Remove an installed skill. |
 | `cast config lang <en\|ko>` | Set language preference (English/Korean). |

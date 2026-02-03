@@ -331,7 +331,7 @@ class CastManager {
     }
 
     // 4. 스킬 장착 (Use)
-    async use(query) {
+    async use(query, options = {}) {
         const sourceNames = Object.keys(this.config.sources);
         if (sourceNames.length === 0) {
             log(t('error_no_sources'), styles.red);
@@ -383,14 +383,14 @@ class CastManager {
 
             for (const idx of indices) {
                 if (skills[idx]) {
-                    await this._activateSkill(sourceName, skills[idx].name, skills[idx].path);
+                    await this._activateSkill(sourceName, skills[idx].name, skills[idx].path, options);
                 }
             }
             return;
         }
 
         // 직접 지정된 경우
-        await this._activateSkill(sourceName, skillName);
+        await this._activateSkill(sourceName, skillName, null, options);
     }
 
     // 유틸리티: 현재 활성화된 스킬 목록 (심볼릭 링크 조사)
@@ -440,7 +440,7 @@ class CastManager {
         return active;
     }
 
-    async _activateSkill(sourceName, skillName, skillPath = null) {
+    async _activateSkill(sourceName, skillName, skillPath = null, options = {}) {
         const skillKey = `${sourceName}/${skillName}`;
 
         // 스킬 경로 결정: 직접 제공되었거나 탐색
@@ -470,17 +470,45 @@ class CastManager {
             return log(t('error_skill_not_found', { key: skillKey }), styles.red);
         }
 
-        // .claude/skills 폴더에 폴더 전체를 symlink
-        const destPath = path.join(CLAUDE_SKILLS_DIR, skillName);
+        // 대상 에이전트 결정
+        const agents = ['claude', 'gemini', 'codex'];
+        const targets = [];
 
-        if (fs.existsSync(destPath)) {
-            return log(t('warn_skill_exists', { skillName }), styles.yellow);
+        const hasSpecificFlag = agents.some(a => options[a]);
+        if (hasSpecificFlag) {
+            agents.forEach(a => {
+                if (options[a]) targets.push(a);
+            });
+        } else {
+            targets.push(...agents);
         }
 
-        ensureDir(CLAUDE_SKILLS_DIR);
-        linkOrCopy(sourcePath, destPath, true); // 항상 폴더로 처리
+        let installedCount = 0;
 
-        log(t('success_skill_installed', { skillName }), styles.green);
+        for (const agent of targets) {
+            const agentRootDir = path.join(process.cwd(), `.${agent}`);
+            // 해당 에이전트 폴더가 없으면 스킵
+            if (!fs.existsSync(agentRootDir)) continue;
+
+            const agentSkillsDir = path.join(agentRootDir, 'skills');
+            ensureDir(agentSkillsDir);
+
+            const destPath = path.join(agentSkillsDir, skillName);
+
+            if (fs.existsSync(destPath)) {
+                log(t('warn_skill_exists', { skillName: `${skillName} (.${agent})` }), styles.yellow);
+                continue;
+            }
+
+            linkOrCopy(sourcePath, destPath, true); // 항상 폴더로 처리
+            log(t('success_skill_installed', { skillName: `${skillName} -> .${agent}` }), styles.green);
+            installedCount++;
+        }
+
+        if (installedCount === 0) {
+            const targetList = targets.map(t => `.${t}`).join(', ');
+            log(`${styles.yellow}No target directories found among [${targetList}]. Create .claude, .gemini, or .codex folder first.${styles.reset}`);
+        }
     }
 
     // 5. 동기화 (Sync)
@@ -750,7 +778,15 @@ ${t('usage_source_sync')}
             }
             break;
         case 'use':
-            await manager.use(param);
+            const useArgs = args.slice(1); // 'use' 제외한 나머지
+            const useFlags = {
+                claude: useArgs.includes('--claude'),
+                gemini: useArgs.includes('--gemini'),
+                codex: useArgs.includes('--codex')
+            };
+            // flag가 아닌 첫번째 인자를 쿼리로 간주
+            const query = useArgs.find(arg => !arg.startsWith('--'));
+            await manager.use(query, useFlags);
             break;
 
         case 'list':

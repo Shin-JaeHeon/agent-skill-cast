@@ -64,6 +64,7 @@ cast source sync
 | `cast source remove <이름>` | 소스 등록 해제 |
 | `cast use` | 스킬 선택 및 장착 (대화형) |
 | `cast use <소스>/<스킬>` | 특정 스킬 바로 장착 |
+| `cast use ... --claude` | `.claude/skills` 에만 장착 (폴더가 있어야 함) |
 | `cast list` | 현재 프로젝트에 장착된 스킬 목록 |
 | `cast remove <스킬>` | 장착된 스킬 제거 |
 | `cast config lang <en\|ko>` | 언어 설정 변경 (영어/한국어) |
