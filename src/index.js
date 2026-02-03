@@ -735,6 +735,8 @@ async function main() {
                 await manager.addSource(args[2]);
             } else if (subCommand === 'remove' || subCommand === 'rm') {
                 await manager.removeSource(args[2]);
+            } else if (subCommand === 'sync') {
+                manager.sync();
             } else if (subCommand === 'list' || subCommand === 'ls') {
                 manager.listSources();
             } else {
@@ -743,15 +745,14 @@ ${styles.bright}${t('usage_source_header')}${styles.reset}
 ${t('usage_source_add')}
 ${t('usage_source_list')}
 ${t('usage_source_remove')}
+${t('usage_source_sync')}
                 `);
             }
             break;
         case 'use':
             await manager.use(param);
             break;
-        case 'sync':
-            manager.sync();
-            break;
+
         case 'list':
             manager.list();
             break;

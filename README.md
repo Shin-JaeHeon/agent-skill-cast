@@ -8,7 +8,7 @@ ASC is a CLI tool that makes it easy to share and sync skills (folders) for AI a
 
 - **Selective Sync**: You don't need the entire repository. Pick only the skills you need.
 - **Multi-Agent Support**: Works with `.claude/skills`, `.gemini/skills`, and `.codex/skills`.
-- **Live Updates**: Run `cast sync` to pull the latest changes from the source and update your project instantly.
+- **Live Updates**: Run `cast source sync` to pull the latest changes from the source and update your project instantly.
 - **Local & Remote**: Support both Git repositories and local folders as skill sources.
 
 ## Installation
@@ -49,7 +49,7 @@ cast use
 Keep everything up to date. This pulls changes from your sources and refreshes your skill folders.
 
 ```bash
-cast sync
+cast source sync
 ```
 
 ## Commands
@@ -66,7 +66,7 @@ cast sync
 | `cast list` | Show all currently installed skills in this project. |
 | `cast remove <skill>` | Remove an installed skill. |
 | `cast config lang <en\|ko>` | Set language preference (English/Korean). |
-| `cast sync` | Update sources and refresh installed skills. |
+| `cast source sync` | Update sources and refresh installed skills. |
 
 ## Directory Structure
 
