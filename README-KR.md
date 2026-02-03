@@ -11,7 +11,6 @@ Git 저장소를 기반으로 스킬을 관리하며, 프로젝트의 `.claude/s
 -   **스마트 동기화 (Sync)**: 원격 저장소의 최신 스킬을 가져와 현재 프로젝트(`.claude/skills`)에 셋팅합니다.
 -   **충돌 자동 해결 (Auto-Rebase)**: 스킬 배포 시 발생할 수 있는 충돌을 자동으로 해결하려고 시도합니다.
 -   **외부 스킬 복제 (Clone)**: 다른 Git 저장소에 있는 유용한 스킬들을 소스로 등록할 수 있습니다.
--   **쉬운 배포 (Publish)**: 내가 작성한 스킬을 선택하여 팀 저장소에 즉시 공유할 수 있습니다.
 
 ## 🚀 설치 방법
 
@@ -62,17 +61,12 @@ cast use awesome-claude-skills/connect
 cast sync
 ```
 
-### 5. 스킬 배포 (Publish)
-```bash
-cast publish
-```
-
-### 6. 목록 확인 (List)
+### 5. 목록 확인 (List)
 ```bash
 cast list
 ```
 
-### 7. 스킬 제거 (Remove)
+### 6. 스킬 제거 (Remove)
 ```bash
 cast remove
 cast remove skill-name

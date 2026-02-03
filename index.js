@@ -9,7 +9,6 @@
  * - import: 로컬 폴더를 소스로 등록
  * - use: 소스에서 원하는 스킬만 선택 장착
  * - sync: 소스 업데이트 및 스킬 링크 갱신
- * - publish: Git 소스에 스킬 배포
  */
 
 const fs = require('fs');
@@ -499,70 +498,6 @@ ${styles.magenta}   _______  _______  _______
         log(`\n✨ 동기화 완료! ${linkCount}개의 스킬이 유지되고 있습니다.`, styles.green);
     }
 
-    // 6. 배포 (Publish)
-    async publish(skillName) {
-        log("\n📤 스킬 배포", styles.bright);
-
-        const activeSkills = this._getActiveSkills();
-
-        if (skillName) {
-            // 스킬명으로 검색
-            const found = activeSkills.find(item => {
-                return item.name.toLowerCase() === skillName.toLowerCase() ||
-                    item.key.toLowerCase().includes(skillName.toLowerCase());
-            });
-            targetSkillKey = found ? found.key : null;
-        } else {
-            // 대화형 선택
-            if (activeSkills.length === 0) {
-                return log("❌ 배포할 활성 스킬이 없습니다.", styles.red);
-            }
-
-            log("\n🔮 활성 스킬 목록:", styles.bright);
-            activeSkills.forEach((item, i) => {
-                console.log(`  [${i + 1}] ${item.key}`);
-            });
-
-            const idx = await askQuestion("\n배포할 스킬 번호: ");
-            const selected = activeSkills[parseInt(idx) - 1];
-            targetSkillKey = selected?.key;
-        }
-
-        if (!targetSkillKey) {
-            return log("❌ 스킬을 찾을 수 없습니다.", styles.red);
-        }
-
-        const parts = targetSkillKey.split('/');
-        const sourceName = parts[0];
-        const sourceInfo = this.config.sources[sourceName];
-
-        if (!sourceInfo || sourceInfo.type !== 'git') {
-            return log(`❌ '${sourceName}'은(는) Git 소스가 아니므로 배포할 수 없습니다.`, styles.red);
-        }
-
-        const sourceDir = path.join(SOURCES_DIR, sourceName);
-        const commitMsg = await askQuestion("📝 커밋 메시지: ");
-
-        try {
-            runCmd('git add .', sourceDir);
-            runCmd(`git commit -m "${commitMsg || '스킬 업데이트'}"`, sourceDir);
-
-            try {
-                runCmd('git pull --rebase origin main', sourceDir);
-            } catch (e) {
-                log("⚠️  충돌 발생! 수동 해결이 필요합니다.", styles.red);
-                log(`   위치: ${sourceDir}`, styles.yellow);
-                return;
-            }
-
-            runCmd('git push origin main', sourceDir);
-            log(`\n🎉 배포 성공! 팀원들이 'cast sync'로 업데이트할 수 있습니다.`, styles.green);
-
-        } catch (e) {
-            log(`❌ 배포 실패: ${e.message}`, styles.red);
-        }
-    }
-
     // 7. 목록 (List)
     list() {
         const agentFolders = [
@@ -759,9 +694,7 @@ async function main() {
         case 'sync':
             manager.sync();
             break;
-        case 'publish':
-            await manager.publish(param);
-            break;
+
         case 'list':
             manager.list();
             break;
@@ -783,7 +716,6 @@ ${styles.bright}사용법:${styles.reset}
   cast import <경로>            - 로컬 폴더를 소스로 추가
   cast use [소스/스킬]          - 스킬 장착 (대화형 또는 직접 지정)
   cast sync                    - 소스 업데이트 및 스킬 동기화
-  cast publish [스킬명]         - Git 소스에 스킬 배포
   cast list                    - 장착된 스킬 및 소스 목록
   cast remove [스킬명]          - 스킬 제거
   cast unclone [소스명]         - Git 소스 제거
@@ -792,7 +724,6 @@ ${styles.bright}사용법:${styles.reset}
 ${styles.cyan}예시:${styles.reset}
   cast clone https://github.com/ComposioHQ/awesome-claude-skills
   cast use awesome-claude-skills/connect
-  cast publish my-custom-skill
   cast unclone awesome-claude-skills
             `);
     }
