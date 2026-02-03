@@ -111,7 +111,7 @@ function findSkills(sourceDir) {
                     // SKILL.md가 있는지 확인 (선택적)
                     const skillMdPath = path.join(itemPath, 'SKILL.md');
                     if (fs.existsSync(skillMdPath)) {
-                        skills.push({ name: item, path: itemPath, location: '.claude/skills' });
+                        skills.push({ name: item, path: itemPath, location: 'claude' });
                         addedSkills.add(item);
                     }
                 }
@@ -327,7 +327,7 @@ ${styles.magenta}   _______  _______  _______
 
             log(`\n📂 '${sourceName}'의 스킬 목록:`, styles.bright);
             skills.forEach((skill, i) => {
-                const locationTag = skill.location === '.claude/skills' ? styles.cyan + '[skills]' : styles.magenta + '[root]';
+                const locationTag = skill.location === 'claude' ? styles.cyan + '[claude]' : styles.magenta + '[root]';
                 console.log(`  [${i + 1}] 📁 ${skill.name} ${locationTag}${styles.reset}`);
             });
 
