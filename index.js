@@ -89,25 +89,60 @@ function askQuestion(query) {
     }));
 }
 
-// 소스 내 1뎁스 폴더를 스킬로 인식 (폴더 전체를 symlink)
+// 소스 내 스킬 검색 (2단계)
+// 1단계: .claude/skills 폴더 내 스킬 검색
+// 2단계: 소스 루트에서 skill-*/SKILL.md 패턴 검색
 function findSkills(sourceDir) {
     if (!fs.existsSync(sourceDir)) return [];
-    const items = fs.readdirSync(sourceDir);
     const skills = [];
+    const addedSkills = new Set(); // 중복 방지
 
-    items.forEach(item => {
-        // .git, node_modules 등 제외
+    // 1단계: .claude/skills 폴더 검색
+    const claudeSkillsDir = path.join(sourceDir, '.claude', 'skills');
+    if (fs.existsSync(claudeSkillsDir)) {
+        const claudeItems = fs.readdirSync(claudeSkillsDir);
+        claudeItems.forEach(item => {
+            if (item.startsWith('.') || item === 'node_modules') return;
+
+            const itemPath = path.join(claudeSkillsDir, item);
+            try {
+                const stat = fs.statSync(itemPath);
+                if (stat.isDirectory()) {
+                    // SKILL.md가 있는지 확인 (선택적)
+                    const skillMdPath = path.join(itemPath, 'SKILL.md');
+                    if (fs.existsSync(skillMdPath)) {
+                        skills.push({ name: item, path: itemPath, location: '.claude/skills' });
+                        addedSkills.add(item);
+                    }
+                }
+            } catch (e) { /* 무시 */ }
+        });
+    }
+
+    // 2단계: 소스 루트에서 SKILL.md가 포함된 폴더 검색
+    const rootItems = fs.readdirSync(sourceDir);
+    rootItems.forEach(item => {
         if (item.startsWith('.') || item === 'node_modules') return;
 
         const itemPath = path.join(sourceDir, item);
         try {
             const stat = fs.statSync(itemPath);
             if (stat.isDirectory()) {
-                skills.push(item); // 폴더 이름만 저장
+                const skillMdPath = path.join(itemPath, 'SKILL.md');
+                if (fs.existsSync(skillMdPath) && !addedSkills.has(item)) {
+                    skills.push({ name: item, path: itemPath, location: 'root' });
+                    addedSkills.add(item);
+                }
             }
         } catch (e) { /* 무시 */ }
     });
+
     return skills;
+}
+
+// 하위 호환성: 스킬 이름만 반환하는 헬퍼
+function getSkillNames(skills) {
+    return skills.map(s => typeof s === 'string' ? s : s.name);
 }
 
 // 심볼릭 링크 또는 복사 (Windows 호환, 파일 및 폴더 지원)
@@ -292,7 +327,8 @@ ${styles.magenta}   _______  _______  _______
 
             log(`\n📂 '${sourceName}'의 스킬 목록:`, styles.bright);
             skills.forEach((skill, i) => {
-                console.log(`  [${i + 1}] 📁 ${skill}`);
+                const locationTag = skill.location === '.claude/skills' ? styles.cyan + '[skills]' : styles.magenta + '[root]';
+                console.log(`  [${i + 1}] 📁 ${skill.name} ${locationTag}${styles.reset}`);
             });
 
             const skillIdx = await askQuestion("\n장착할 스킬 번호 (쉼표로 다중 선택): ");
@@ -300,7 +336,7 @@ ${styles.magenta}   _______  _______  _______
 
             for (const idx of indices) {
                 if (skills[idx]) {
-                    await this._activateSkill(sourceName, skills[idx]);
+                    await this._activateSkill(sourceName, skills[idx].name, skills[idx].path);
                 }
             }
             return;
@@ -310,17 +346,37 @@ ${styles.magenta}   _______  _______  _______
         await this._activateSkill(sourceName, skillName);
     }
 
-    async _activateSkill(sourceName, skillName) {
+    async _activateSkill(sourceName, skillName, skillPath = null) {
         const skillKey = `${sourceName}/${skillName}`;
-        const sourcePath = path.join(SOURCES_DIR, sourceName, skillName);
+
+        // 스킬 경로 결정: 직접 제공되었거나 탐색
+        let sourcePath = skillPath;
+        if (!sourcePath) {
+            // 2단계 검색: .claude/skills 우선, 그 다음 skill-* 패턴
+            const sourceDir = path.join(SOURCES_DIR, sourceName);
+            const claudeSkillPath = path.join(sourceDir, '.claude', 'skills', skillName);
+            const rootSkillPath = path.join(sourceDir, skillName);
+
+            if (fs.existsSync(claudeSkillPath) && fs.existsSync(path.join(claudeSkillPath, 'SKILL.md'))) {
+                sourcePath = claudeSkillPath;
+            } else if (fs.existsSync(rootSkillPath) && fs.existsSync(path.join(rootSkillPath, 'SKILL.md'))) {
+                sourcePath = rootSkillPath;
+            } else {
+                return log(`❌ 스킬을 찾을 수 없습니다: ${skillKey}`, styles.red);
+            }
+        }
 
         if (!fs.existsSync(sourcePath)) {
             return log(`❌ 스킬을 찾을 수 없습니다: ${skillKey}`, styles.red);
         }
 
-        // Active 목록에 추가
-        if (!this.config.active.includes(skillKey)) {
-            this.config.active.push(skillKey);
+        // Active 목록에 추가 (경로 정보도 저장)
+        const activeEntry = { key: skillKey, path: sourcePath };
+        const existingIdx = this.config.active.findIndex(a =>
+            (typeof a === 'string' ? a : a.key) === skillKey
+        );
+        if (existingIdx === -1) {
+            this.config.active.push(activeEntry);
             saveConfig(this.config);
         }
 
@@ -354,8 +410,27 @@ ${styles.magenta}   _______  _______  _______
         ensureDir(CLAUDE_SKILLS_DIR);
         let linkCount = 0;
 
-        for (const skillKey of this.config.active) {
-            const sourcePath = path.join(SOURCES_DIR, skillKey);
+        for (const activeItem of this.config.active) {
+            // 하위 호환성: 문자열 또는 객체 지원
+            const skillKey = typeof activeItem === 'string' ? activeItem : activeItem.key;
+            let sourcePath = typeof activeItem === 'object' ? activeItem.path : null;
+
+            if (!sourcePath) {
+                // 기존 방식: SOURCES_DIR/key 경로
+                sourcePath = path.join(SOURCES_DIR, skillKey);
+
+                // 없으면 2단계 검색 시도
+                if (!fs.existsSync(sourcePath)) {
+                    const parts = skillKey.split('/');
+                    if (parts.length >= 2) {
+                        const sourceDir = path.join(SOURCES_DIR, parts[0]);
+                        const skillName = parts.slice(1).join('/');
+                        const claudePath = path.join(sourceDir, '.claude', 'skills', skillName);
+                        if (fs.existsSync(claudePath)) sourcePath = claudePath;
+                    }
+                }
+            }
+
             if (!fs.existsSync(sourcePath)) {
                 log(`   ⚠️  ${skillKey} 폴더 없음 (스킵)`, styles.yellow);
                 continue;
@@ -379,10 +454,12 @@ ${styles.magenta}   _______  _______  _______
 
         if (skillName) {
             // 스킬명으로 검색
-            targetSkillKey = this.config.active.find(key =>
-                path.basename(key).toLowerCase() === skillName.toLowerCase() ||
-                key.toLowerCase().includes(skillName.toLowerCase())
-            );
+            const found = this.config.active.find(item => {
+                const key = typeof item === 'string' ? item : item.key;
+                return path.basename(key).toLowerCase() === skillName.toLowerCase() ||
+                    key.toLowerCase().includes(skillName.toLowerCase());
+            });
+            targetSkillKey = found ? (typeof found === 'string' ? found : found.key) : null;
         } else {
             // 대화형 선택
             if (this.config.active.length === 0) {
@@ -390,12 +467,14 @@ ${styles.magenta}   _______  _______  _______
             }
 
             log("\n🔮 활성 스킬 목록:", styles.bright);
-            this.config.active.forEach((key, i) => {
+            this.config.active.forEach((item, i) => {
+                const key = typeof item === 'string' ? item : item.key;
                 console.log(`  [${i + 1}] ${key}`);
             });
 
             const idx = await askQuestion("\n배포할 스킬 번호: ");
-            targetSkillKey = this.config.active[parseInt(idx) - 1];
+            const selected = this.config.active[parseInt(idx) - 1];
+            targetSkillKey = typeof selected === 'string' ? selected : selected?.key;
         }
 
         if (!targetSkillKey) {
@@ -441,9 +520,10 @@ ${styles.magenta}   _______  _______  _______
             log("   장착된 스킬이 없습니다.", styles.yellow);
             log("   💡 'cast use'로 스킬을 장착하세요.", styles.cyan);
         } else {
-            this.config.active.forEach(key => {
-                const skillName = path.basename(key, '.md');
-                console.log(`   ${styles.green}✓${styles.reset} ${skillName} ${styles.cyan}(${key})${styles.reset}`);
+            this.config.active.forEach(item => {
+                const skillKey = typeof item === 'string' ? item : item.key;
+                const skillName = path.basename(skillKey);
+                console.log(`   ${styles.green}✓${styles.reset} ${skillName} ${styles.cyan}(${skillKey})${styles.reset}`);
             });
         }
 
@@ -466,24 +546,29 @@ ${styles.magenta}   _______  _______  _______
                 return log("❌ 제거할 스킬이 없습니다.", styles.red);
             }
             log("\n🗑️  제거할 스킬 선택:", styles.bright);
-            this.config.active.forEach((key, i) => {
+            this.config.active.forEach((item, i) => {
+                const key = typeof item === 'string' ? item : item.key;
                 console.log(`  [${i + 1}] ${key}`);
             });
             const idx = await askQuestion("\n번호: ");
-            skillName = this.config.active[parseInt(idx) - 1];
+            const selected = this.config.active[parseInt(idx) - 1];
+            skillName = typeof selected === 'string' ? selected : selected?.key;
         }
 
-        const targetKey = this.config.active.find(key =>
-            key === skillName ||
-            path.basename(key).toLowerCase() === skillName.toLowerCase()
-        );
+        const targetIdx = this.config.active.findIndex(item => {
+            const key = typeof item === 'string' ? item : item.key;
+            return key === skillName || path.basename(key).toLowerCase() === skillName.toLowerCase();
+        });
 
-        if (!targetKey) {
+        if (targetIdx === -1) {
             return log("❌ 스킬을 찾을 수 없습니다.", styles.red);
         }
 
+        const targetItem = this.config.active[targetIdx];
+        const targetKey = typeof targetItem === 'string' ? targetItem : targetItem.key;
+
         // Active에서 제거
-        this.config.active = this.config.active.filter(k => k !== targetKey);
+        this.config.active.splice(targetIdx, 1);
         saveConfig(this.config);
 
         // 심볼릭 링크/폴더 제거
