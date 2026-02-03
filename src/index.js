@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * 🧙‍♂️ Agent Skill Cast (ASC) v1.0.0
+ * 🧙‍♂️ Agent Skill Cast v1.0.0
  * "AI 에이전트 스킬을 시전(Cast)하세요."
  * 
  * 기능: 소스 기반 스킬 관리, 선택적 동기화 (Selective Sync)
@@ -234,9 +234,7 @@ class CastManager {
         log(t('init_msg'), styles.bright);
 
         ensureDir(SOURCES_DIR);
-        ensureDir(CLAUDE_SKILLS_DIR);
-        ensureDir(CODEX_SKILLS_DIR);
-        ensureDir(GEMINI_SKILLS_DIR);
+
 
         // 기존 config 유지, 없으면 생성
         if (!fs.existsSync(CONFIG_FILE)) {

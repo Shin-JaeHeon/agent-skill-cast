@@ -1,8 +1,8 @@
-# 🧙‍♂️ Agent Skill Cast (ASC)
+# 🧙‍♂️ Agent Skill Cast
 
 **"Cast" your AI agent skills across your team.**
 
-ASC is a CLI tool that makes it easy to share and sync skills (folders) for AI agents like Claude, Gemini, and Codex. Instead of copy-pasting skill folders or struggling with git submodules for just a few files, ASC lets you "cast" skills from a central repository (or local folder) directly into your project.
+Agent Skill Cast is a CLI tool that makes it easy to share and sync skills (folders) for AI agents like Claude, Gemini, and Codex. Instead of copy-pasting skill folders or struggling with git submodules for just a few files, Agent Skill Cast lets you "cast" skills from a central repository (or local folder) directly into your project.
 
 ## Why use this?
 
@@ -13,40 +13,47 @@ ASC is a CLI tool that makes it easy to share and sync skills (folders) for AI a
 
 ## Installation
 
+Prerequisites: Node.js is required. Install globally via npm:
+
 ```bash
 npm install -g agent-skill-cast
 ```
 
 ## Getting Started
 
-### 1. Initialize
-First, set up the ASC environment in your project.
+### 1. Initialize (Init)
+Initialize Agent Skill Cast global configuration. (Run this once)
 
 ```bash
 cast init
 ```
 
-### 2. Add a Source
-Register a skill repository. This can be a GitHub repo or a local directory.
+### 2. Add Source (Register)
+Register a skill repository (Source). Once registered, you can use these skills in any project.
 
 ```bash
-# Add a remote git repository
-cast source add https://github.com/your-org/team-skills
+# Add a GitHub repository (Recommended)
+cast source add https://github.com/my-team/awesome-skills
 
-# Or add a local folder
+# Or add a local folder (Great for development/testing)
 cast source add ~/projects/my-personal-skills
 ```
 
-### 3. Use Skills ("Cast")
-Choose which skills you want to use in your current project. Interactive mode is supported.
+### 3. Cast Skills (Use)
+Select skills from your registered sources and "cast" them into your current project.
 
 ```bash
 cast use
 ```
-*Follow the prompts to select a source and the specific skills you want.*
+*An interactive menu will appear. Enter the **number** corresponding to your choice. (Use commas for multiple selections)*
 
-### 4. Sync
-Keep everything up to date. This pulls changes from your sources and refreshes your skill folders.
+### 4. Verify
+Check your project folder!
+You will see that the selected skills are symlinked into `.claude/skills/`. Your AI agent (e.g., Claude) can now see and use these skills.
+
+### 5. Sync
+Has the source repository been updated with new skills or fixes?
+Run the `sync` command to pull the latest changes and refresh your installed skills.
 
 ```bash
 cast source sync
@@ -55,14 +62,13 @@ cast source sync
 ## Commands
 
 | Command | Description |
-|Args| |
 |---|---|
-| `cast init` | Initialize ASC in the current directory. |
-| `cast source add <url/path>` | Add a skill source (Git URL or local path). |
+| `cast init` | Initialize Agent Skill Cast global configuration. |
+| `cast source add <URL/Path>` | Register a skill source (Git Repo or Local Path). |
 | `cast source list` | Show all registered sources. |
-| `cast source remove <name>` | Remove a registered source. |
-| `cast use` | Interactively select and install skills. |
-| `cast use <source>/<skill>` | Install a specific skill directly. |
+| `cast source remove <Name>` | Unregister a source. |
+| `cast use` | Interactive menu to select and install skills. |
+| `cast use <Source>/<Skill>` | Install a specific skill directly (Non-interactive). |
 | `cast use ... --claude` | Install only to `.claude/skills` (must exist). |
 | `cast list` | Show all currently installed skills in this project. |
 | `cast remove <skill>` | Remove an installed skill. |
@@ -71,7 +77,7 @@ cast source sync
 
 ## Directory Structure
 
-ASC keeps your project clean:
+Agent Skill Cast keeps your project clean:
 
 - `~/.asc_sources/`: Where sources are cloned/linked (managed globally).
 - `.claude/skills/`: Symlinks to the actual skill folders.

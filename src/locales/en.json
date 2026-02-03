@@ -1,6 +1,6 @@
 {
     "header_title": "Agent Skill Cast v1.0.0",
-    "init_msg": "ASC: Agent Skill Sync Initialization\n",
+    "init_msg": "Agent Skill Cast: Agent Skill Sync Initialization\n",
     "config_created": "Config file created: {path}",
     "config_exists": "Existing config file found: {path}",
     "next_steps": "\nNext steps:",
