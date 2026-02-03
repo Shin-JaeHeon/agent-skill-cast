@@ -22,7 +22,9 @@ const readline = require('readline');
 const HOME_DIR = os.homedir();
 const CONFIG_FILE = path.join(HOME_DIR, '.asc-config.json');
 const SOURCES_DIR = path.join(HOME_DIR, '.asc_sources');
-const CLAUDE_SKILLS_DIR = path.join(process.cwd(), '.claude', 'skills'); // 현재 프로젝트 폴더
+const CLAUDE_SKILLS_DIR = path.join(process.cwd(), '.claude', 'skills');
+const CODEX_SKILLS_DIR = path.join(process.cwd(), '.codex', 'skills');
+const GEMINI_SKILLS_DIR = path.join(process.cwd(), '.gemini', 'skills');
 
 // --- 스타일 유틸리티 ---
 const styles = {
@@ -200,6 +202,8 @@ ${styles.magenta}   _______  _______  _______
 
         ensureDir(SOURCES_DIR);
         ensureDir(CLAUDE_SKILLS_DIR);
+        ensureDir(CODEX_SKILLS_DIR);
+        ensureDir(GEMINI_SKILLS_DIR);
 
         // 기존 config 유지, 없으면 생성
         if (!fs.existsSync(CONFIG_FILE)) {
@@ -544,17 +548,61 @@ ${styles.magenta}   _______  _______  _______
 
     // 7. 목록 (List)
     list() {
-        log("\n📜 현재 장착된 스킬 목록", styles.bright);
+        const agentFolders = [
+            { name: 'Claude', dir: CLAUDE_SKILLS_DIR, color: styles.cyan },
+            { name: 'Codex', dir: CODEX_SKILLS_DIR, color: styles.magenta },
+            { name: 'Gemini', dir: GEMINI_SKILLS_DIR, color: styles.yellow }
+        ];
 
-        if (this.config.active.length === 0) {
-            log("   장착된 스킬이 없습니다.", styles.yellow);
+        log("\n🧙‍♂️ 현재 프로젝트의 에이전트 스킬", styles.bright);
+
+        let foundAny = false;
+        agentFolders.forEach(agent => {
+            if (fs.existsSync(agent.dir)) {
+                const items = fs.readdirSync(agent.dir);
+                const skills = items.filter(item => {
+                    if (item.startsWith('.') || item === 'node_modules') return false;
+                    try {
+                        const fullPath = path.join(agent.dir, item);
+                        return fs.statSync(fullPath).isDirectory();
+                    } catch (e) { return false; }
+                });
+
+                if (skills.length > 0) {
+                    foundAny = true;
+                    log(`\n ${agent.color}[${agent.name}]${styles.reset} 스킬:`, styles.bright);
+                    skills.forEach(skill => {
+                        const fullPath = path.join(agent.dir, skill);
+                        let sourceInfo = "";
+                        try {
+                            const lstat = fs.lstatSync(fullPath);
+                            if (lstat.isSymbolicLink()) {
+                                const targetPath = fs.readlinkSync(fullPath);
+                                let displayPath = targetPath;
+
+                                // .asc_sources 내부를 가리키는 경우 소스 이름만 추출
+                                if (targetPath.startsWith(SOURCES_DIR)) {
+                                    const relative = path.relative(SOURCES_DIR, targetPath);
+                                    displayPath = relative.split(path.sep)[0];
+                                } else {
+                                    displayPath = path.basename(targetPath);
+                                }
+
+                                sourceInfo = ` ${styles.blue}(🔗 ${displayPath})${styles.reset}`;
+                            } else {
+                                sourceInfo = ` ${styles.yellow}[local]${styles.reset}`;
+                            }
+                        } catch (e) { /* ignore */ }
+
+                        console.log(`   ${styles.green}✓${styles.reset} ${skill}${sourceInfo}`);
+                    });
+                }
+            }
+        });
+
+        if (!foundAny) {
+            log("   장착된 프로젝트 스킬이 없습니다.", styles.yellow);
             log("   💡 'cast use'로 스킬을 장착하세요.", styles.cyan);
-        } else {
-            this.config.active.forEach(item => {
-                const skillKey = typeof item === 'string' ? item : item.key;
-                const skillName = path.basename(skillKey);
-                console.log(`   ${styles.green}✓${styles.reset} ${skillName} ${styles.cyan}(${skillKey})${styles.reset}`);
-            });
         }
 
         log("\n📚 등록된 소스 목록", styles.bright);
