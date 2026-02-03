@@ -572,8 +572,6 @@ class CastManager {
             log(t('warn_no_project_skills'), styles.yellow);
             log(t('info_use_hint_general'), styles.cyan);
         }
-
-        this.listSources();
     }
 
     // 7.1 소스 목록만 보기
