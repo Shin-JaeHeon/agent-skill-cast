@@ -1,6 +1,6 @@
 {
   "name": "agent-skill-cast",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Agent Skill Cast - Selective Skill Sync & Source Management",
   "bin": {
     "cast": "./src/index.js"
@@ -17,5 +17,5 @@
     "claude"
   ],
   "author": "Shin-JaeHeon",
-  "license": "ISC"
+  "license": "MIT"
 }
