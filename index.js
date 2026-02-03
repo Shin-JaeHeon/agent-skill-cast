@@ -264,7 +264,7 @@ ${styles.magenta}   _______  _______  _______
         }
         if (!localPath) return log("❌ 경로가 입력되지 않았습니다.", styles.red);
 
-        const resolvedPath = resolveHome(localPath.trim());
+        const resolvedPath = fs.realpathSync(resolveHome(localPath.trim()));
 
         if (!fs.existsSync(resolvedPath)) {
             return log(`❌ 경로가 존재하지 않습니다: ${resolvedPath}`, styles.red);
@@ -284,7 +284,9 @@ ${styles.magenta}   _______  _______  _______
             // Windows에서는 junction 사용 (관리자 권한 불필요)
             const symlinkType = os.platform() === 'win32' ? 'junction' : 'dir';
             fs.symlinkSync(resolvedPath, linkPath, symlinkType);
-            log(`✅ '${sourceName}' 로컬 소스 연결 완료!`, styles.green);
+            log(`✅ '${sourceName}' 로컬 소스 연결 완료! (Symbolic Clone)`, styles.green);
+            log(`   🔗 원본: ${resolvedPath}`, styles.cyan);
+            log(`   📍 링크: ${linkPath}`, styles.cyan);
         } catch (e) {
             log(`❌ 심볼릭 링크 생성 실패: ${e.message}`, styles.red);
             return;
@@ -657,6 +659,80 @@ ${styles.magenta}   _______  _______  _______
 
         log(`✅ 📂 '${path.basename(targetKey)}' 스킬이 제거되었습니다.`, styles.green);
     }
+
+    // 9. 소스 제거 (Remove Source)
+    async removeSource(sourceName) {
+        if (!sourceName) {
+            const sourceNames = Object.keys(this.config.sources);
+            if (sourceNames.length === 0) {
+                return log("❌ 등록된 소스가 없습니다.", styles.red);
+            }
+            log("\n🗑️  제거할 소스 선택:", styles.bright);
+            sourceNames.forEach((name, i) => {
+                const info = this.config.sources[name];
+                const typeIcon = info.type === 'git' ? '🌐' : '📁';
+                console.log(`  [${i + 1}] ${typeIcon} ${name}`);
+            });
+            const idx = await askQuestion("\n번호: ");
+            sourceName = sourceNames[parseInt(idx) - 1];
+        }
+
+        if (!sourceName || !this.config.sources[sourceName]) {
+            return log("❌ 소스를 찾을 수 없습니다.", styles.red);
+        }
+
+        log(`\n🔄 소스 '${sourceName}' 및 관련 스킬 제거 중...`, styles.cyan);
+
+        // A. 해당 소스에 포함된 active 스킬들 식별 및 제거
+        const prefix = `${sourceName}/`;
+        const activeSkills = this.config.active.filter(a => {
+            const key = typeof a === 'string' ? a : a.key;
+            return key.startsWith(prefix);
+        });
+
+        if (activeSkills.length > 0) {
+            log(`   🗑️  장착된 스킬 ${activeSkills.length}개 제거 중...`, styles.yellow);
+            for (const skill of activeSkills) {
+                const key = typeof skill === 'string' ? skill : skill.key;
+                const skillName = path.basename(key);
+
+                // 각 에이전트 폴더에서 링크 제거
+                [CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR].forEach(dir => {
+                    const destPath = path.join(dir, skillName);
+                    if (fs.existsSync(destPath)) {
+                        fs.rmSync(destPath, { recursive: true, force: true });
+                    }
+                });
+            }
+
+            // config.active에서 제외
+            this.config.active = this.config.active.filter(a => {
+                const key = typeof a === 'string' ? a : a.key;
+                return !key.startsWith(prefix);
+            });
+        }
+
+        // B. Config에서 소스 제거
+        delete this.config.sources[sourceName];
+        saveConfig(this.config);
+
+        // C. ~/.asc_sources 에서 소스 제거
+        const sourcePath = path.join(SOURCES_DIR, sourceName);
+        if (fs.existsSync(sourcePath)) {
+            try {
+                const stat = fs.lstatSync(sourcePath);
+                if (stat.isSymbolicLink()) {
+                    fs.unlinkSync(sourcePath);
+                } else {
+                    fs.rmSync(sourcePath, { recursive: true, force: true });
+                }
+            } catch (e) {
+                log(`⚠️  소스 폴더 제거 중 오류 발생: ${e.message}`, styles.yellow);
+            }
+        }
+
+        log(`\n✅ 소스 '${sourceName}'과 관련 스킬들이 모두 제거되었습니다.`, styles.green);
+    }
 }
 
 // --- CLI 실행 ---
@@ -693,6 +769,10 @@ async function main() {
         case 'uncast':
             await manager.remove(param);
             break;
+        case 'unclone':
+        case 'unimport':
+            await manager.removeSource(param);
+            break;
         default:
             console.log(`
 ${styles.magenta}🧙‍♂️ Agent Skill Cast (ASC) v2.0${styles.reset}
@@ -706,11 +786,14 @@ ${styles.bright}사용법:${styles.reset}
   cast publish [스킬명]         - Git 소스에 스킬 배포
   cast list                    - 장착된 스킬 및 소스 목록
   cast remove [스킬명]          - 스킬 제거
+  cast unclone [소스명]         - Git 소스 제거
+  cast unimport [소스명]        - 로컬 폴더 소스 제거
 
 ${styles.cyan}예시:${styles.reset}
   cast clone https://github.com/ComposioHQ/awesome-claude-skills
   cast use awesome-claude-skills/connect
   cast publish my-custom-skill
+  cast unclone awesome-claude-skills
             `);
     }
 }
