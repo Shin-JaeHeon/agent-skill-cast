@@ -225,15 +225,26 @@ ${styles.magenta}   _______  _______  _______
         log("   3. cast use          - 스킬 장착");
     }
 
-    // 2. 외부 저장소 복제 (Clone) - 소스로 등록
-    async clone(externalUrl) {
-        if (!externalUrl) {
-            externalUrl = await askQuestion("🔗 추가할 외부 Git 저장소 URL: ");
+    // 2. 소스 추가 (Add Source) - 자동 감지
+    async addSource(input) {
+        if (!input) {
+            input = await askQuestion("🔗 추가할 소스 (URL 또는 로컬 경로): ");
         }
-        if (!externalUrl) return log("❌ URL이 입력되지 않았습니다.", styles.red);
+        if (!input) return log("❌ 입력이 없습니다.", styles.red);
 
-        // 저장소 이름 추출
-        const repoName = path.basename(externalUrl.trim(), '.git') || 'external-skills';
+        const target = input.trim();
+        const isGit = target.startsWith('http') || target.startsWith('git@') || target.endsWith('.git');
+
+        if (isGit) {
+            await this._clone(target);
+        } else {
+            await this._import(target);
+        }
+    }
+
+    // 내부: 외부 저장소 복제 (Clone)
+    async _clone(externalUrl) {
+        const repoName = path.basename(externalUrl, '.git') || 'external-skills';
         const destDir = path.join(SOURCES_DIR, repoName);
 
         if (fs.existsSync(destDir)) {
@@ -248,7 +259,7 @@ ${styles.magenta}   _______  _______  _______
             log(`\n📦 소스 저장소 복제 중: ${repoName}`, styles.cyan);
             try {
                 ensureDir(SOURCES_DIR);
-                execSync(`git clone ${externalUrl.trim()} "${destDir}"`, { stdio: 'inherit' });
+                execSync(`git clone ${externalUrl} "${destDir}"`, { stdio: 'inherit' });
                 log(`✅ '${repoName}' 소스 추가 완료!`, styles.green);
             } catch (e) {
                 log(`❌ 저장소 복제 실패. URL을 확인하세요.`, styles.red);
@@ -256,21 +267,14 @@ ${styles.magenta}   _______  _______  _______
             }
         }
 
-        // Config에 소스 등록
-        this.config.sources[repoName] = { type: 'git', url: externalUrl.trim() };
+        this.config.sources[repoName] = { type: 'git', url: externalUrl };
         saveConfig(this.config);
-
         log(`\n💡 'cast use ${repoName}/<스킬명>'으로 스킬을 장착하세요.`, styles.yellow);
     }
 
-    // 3. 로컬 폴더 추가 (Import) - 소스로 등록
-    async import(localPath) {
-        if (!localPath) {
-            localPath = await askQuestion("� 추가할 로컬 폴더 경로: ");
-        }
-        if (!localPath) return log("❌ 경로가 입력되지 않았습니다.", styles.red);
-
-        const resolvedPath = fs.realpathSync(resolveHome(localPath.trim()));
+    // 내부: 로컬 폴더 추가 (Import)
+    async _import(localPath) {
+        const resolvedPath = fs.realpathSync(resolveHome(localPath));
 
         if (!fs.existsSync(resolvedPath)) {
             return log(`❌ 경로가 존재하지 않습니다: ${resolvedPath}`, styles.red);
@@ -281,27 +285,21 @@ ${styles.magenta}   _______  _______  _______
 
         ensureDir(SOURCES_DIR);
 
-        // 이미 존재하면 제거
         if (fs.existsSync(linkPath)) {
             fs.rmSync(linkPath, { recursive: true, force: true });
         }
 
         try {
-            // Windows에서는 junction 사용 (관리자 권한 불필요)
             const symlinkType = os.platform() === 'win32' ? 'junction' : 'dir';
             fs.symlinkSync(resolvedPath, linkPath, symlinkType);
-            log(`✅ '${sourceName}' 로컬 소스 연결 완료! (Symbolic Clone)`, styles.green);
-            log(`   🔗 원본: ${resolvedPath}`, styles.cyan);
-            log(`   📍 링크: ${linkPath}`, styles.cyan);
+            log(`✅ '${sourceName}' 로컬 소스 연결 완료!`, styles.green);
         } catch (e) {
             log(`❌ 심볼릭 링크 생성 실패: ${e.message}`, styles.red);
             return;
         }
 
-        // Config에 소스 등록
         this.config.sources[sourceName] = { type: 'local', path: resolvedPath };
         saveConfig(this.config);
-
         log(`\n💡 'cast use ${sourceName}/<스킬명>'으로 스킬을 장착하세요.`, styles.yellow);
     }
 
@@ -498,7 +496,7 @@ ${styles.magenta}   _______  _______  _______
         log(`\n✨ 동기화 완료! ${linkCount}개의 스킬이 유지되고 있습니다.`, styles.green);
     }
 
-    // 7. 목록 (List)
+    // 7. 목록 (List) - 전체 상태 (스킬 + 소스)
     list() {
         const agentFolders = [
             { name: 'Claude', dir: CLAUDE_SKILLS_DIR, color: styles.cyan },
@@ -557,6 +555,11 @@ ${styles.magenta}   _______  _______  _______
             log("   💡 'cast use'로 스킬을 장착하세요.", styles.cyan);
         }
 
+        this.listSources();
+    }
+
+    // 7.1 소스 목록만 보기
+    listSources() {
         log("\n📚 등록된 소스 목록", styles.bright);
         const sourceNames = Object.keys(this.config.sources);
         if (sourceNames.length === 0) {
@@ -564,7 +567,8 @@ ${styles.magenta}   _______  _______  _______
         } else {
             for (const [name, info] of Object.entries(this.config.sources)) {
                 const typeIcon = info.type === 'git' ? '🌐' : '📁';
-                console.log(`   ${typeIcon} ${name}`);
+                const sourcePath = info.type === 'git' ? info.url : info.path;
+                console.log(`   ${typeIcon} ${styles.bright}${name}${styles.reset} ${styles.blue}(${sourcePath})${styles.reset}`);
             }
         }
     }
@@ -674,7 +678,8 @@ ${styles.magenta}   _______  _______  _______
 async function main() {
     const args = process.argv.slice(2);
     const command = args[0];
-    const param = args[1];
+    const subCommand = args[1];
+    const param = args[2] || args[1]; // legacy or new structure support
 
     const manager = new CastManager();
 
@@ -682,11 +687,21 @@ async function main() {
         case 'init':
             await manager.init();
             break;
-        case 'clone':
-            await manager.clone(param);
-            break;
-        case 'import':
-            await manager.import(param);
+        case 'source':
+            if (subCommand === 'add') {
+                await manager.addSource(args[2]);
+            } else if (subCommand === 'remove' || subCommand === 'rm') {
+                await manager.removeSource(args[2]);
+            } else if (subCommand === 'list' || subCommand === 'ls') {
+                manager.listSources();
+            } else {
+                console.log(`
+${styles.bright}사용법 (Source 관리):${styles.reset}
+  cast source add <URL|Path>  - 소스 추가 (Git 또는 로컬)
+  cast source list            - 등록된 소스 목록
+  cast source remove <이름>    - 소스 제거
+                `);
+            }
             break;
         case 'use':
             await manager.use(param);
@@ -694,7 +709,6 @@ async function main() {
         case 'sync':
             manager.sync();
             break;
-
         case 'list':
             manager.list();
             break;
@@ -702,29 +716,23 @@ async function main() {
         case 'uncast':
             await manager.remove(param);
             break;
-        case 'unclone':
-        case 'unimport':
-            await manager.removeSource(param);
-            break;
         default:
             console.log(`
 ${styles.magenta}🧙‍♂️ Agent Skill Cast (ASC) v2.0${styles.reset}
 
 ${styles.bright}사용법:${styles.reset}
   cast init                    - 초기화
-  cast clone <URL>             - 외부 Git 저장소를 소스로 추가
-  cast import <경로>            - 로컬 폴더를 소스로 추가
+  cast source add <URL|Path>   - 소스 추가 (Git 또는 로컬 경로)
+  cast source list             - 등록된 소스 목록
+  cast source remove <이름>     - 소스 제거
   cast use [소스/스킬]          - 스킬 장착 (대화형 또는 직접 지정)
   cast sync                    - 소스 업데이트 및 스킬 동기화
-  cast list                    - 장착된 스킬 및 소스 목록
+  cast list                    - 장착된 스킬 목록
   cast remove [스킬명]          - 스킬 제거
-  cast unclone [소스명]         - Git 소스 제거
-  cast unimport [소스명]        - 로컬 폴더 소스 제거
 
 ${styles.cyan}예시:${styles.reset}
-  cast clone https://github.com/ComposioHQ/awesome-claude-skills
-  cast use awesome-claude-skills/connect
-  cast unclone awesome-claude-skills
+  cast source add https://github.com/user/skills
+  cast use skills/helper
             `);
     }
 }

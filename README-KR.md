@@ -33,16 +33,27 @@ npm install -g .
 cast init
 ```
 
-### 2. 스킬 소스 추가 (Sources)
+### 2. 스킬 소스 추가 (Source Management)
 
-**GitHub 저장소 추가 (Clone)**
+**소스 추가 (URL 또는 로컬 경로)**
+도구가 자동으로 Git 저장소인지 로컬 폴더인지 판단하여 등록합니다.
+
 ```bash
-cast clone https://github.com/ComposioHQ/awesome-claude-skills
+# Git 저장소 추가
+cast source add https://github.com/ComposioHQ/awesome-claude-skills
+
+# 로컬 폴더 추가
+cast source add ~/projects/team-skills
 ```
 
-**로컬 폴더 추가 (Import)**
+**소스 목록 확인**
 ```bash
-cast import ~/projects/team-skills
+cast source list
+```
+
+**소스 제거**
+```bash
+cast source remove source-name
 ```
 
 ### 3. 스킬 장착 (Use)
@@ -62,6 +73,7 @@ cast sync
 ```
 
 ### 5. 목록 확인 (List)
+장착된 스킬 목록을 확인합니다.
 ```bash
 cast list
 ```
