@@ -19,23 +19,32 @@ const readline = require('readline');
 
 // --- i18n ---
 let messages = {};
-try {
-    const localeDir = path.join(__dirname, 'locales');
-    let lang = 'en'; // Default
-    const sysLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
-    if (sysLocale.startsWith('ko') || (process.env.LANG && process.env.LANG.includes('KR'))) {
-        lang = 'ko';
-    }
-    if (process.env.ASC_LANG) lang = process.env.ASC_LANG;
 
-    const localePath = path.join(localeDir, `${lang}.json`);
-    const defaultPath = path.join(localeDir, 'en.json');
-    if (fs.existsSync(localePath)) {
-        messages = require(localePath);
-    } else {
-        messages = require(defaultPath);
-    }
-} catch (e) { messages = {}; }
+function initI18n(preferredLang) {
+    try {
+        const localeDir = path.join(__dirname, 'locales');
+        let lang = preferredLang;
+
+        if (!lang) {
+            lang = 'en'; // Default fallback
+            const sysLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
+            if (sysLocale.startsWith('ko') || (process.env.LANG && process.env.LANG.includes('KR'))) {
+                lang = 'ko';
+            }
+            if (process.env.ASC_LANG) lang = process.env.ASC_LANG;
+        }
+
+        const localePath = path.join(localeDir, `${lang}.json`);
+        const defaultPath = path.join(localeDir, 'en.json');
+
+        if (fs.existsSync(localePath)) {
+            messages = require(localePath);
+        } else {
+            messages = require(defaultPath);
+        }
+    } catch (e) { messages = {}; }
+}
+initI18n(); // Initial load for static strings if any (though main re-inits)
 
 function t(key, params = {}) {
     let msg = messages[key] || key;
@@ -688,6 +697,23 @@ class CastManager {
 
         log(t('success_source_removed', { sourceName }), styles.green);
     }
+
+    // 10. 설정 (Config)
+    configSet(key, value) {
+        if (key === 'lang') {
+            if (['en', 'ko'].includes(value)) {
+                this.config.lang = value;
+                saveConfig(this.config);
+                // 즉시 언어 변경 반영
+                initI18n(value);
+                log(t('success_config_set', { key, value }), styles.green);
+            } else {
+                log(t('error_config_invalid'), styles.red);
+            }
+        } else {
+            console.log(JSON.stringify(this.config, null, 2));
+        }
+    }
 }
 
 // --- CLI 실행 ---
@@ -698,6 +724,7 @@ async function main() {
     const param = args[2] || args[1]; // legacy or new structure support
 
     const manager = new CastManager();
+    initI18n(manager.config.lang);
 
     switch (command) {
         case 'init':
@@ -732,6 +759,9 @@ ${t('usage_source_remove')}
         case 'uncast':
             await manager.remove(param);
             break;
+        case 'config':
+            manager.configSet(subCommand, param);
+            break;
         default:
             console.log(`
 ${styles.magenta}${t('header_title')}${styles.reset}
@@ -745,6 +775,7 @@ ${t('usage_use')}
 ${t('usage_sync')}
 ${t('usage_list')}
 ${t('usage_remove')}
+${t('usage_config')}
 
 ${styles.cyan}${t('usage_example')}${styles.reset}
 ${t('usage_ex_1')}

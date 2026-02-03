@@ -66,6 +66,7 @@ cast sync
 | `cast use <소스>/<스킬>` | 특정 스킬 바로 장착 |
 | `cast list` | 현재 프로젝트에 장착된 스킬 목록 |
 | `cast remove <스킬>` | 장착된 스킬 제거 |
+| `cast config lang <en\|ko>` | 언어 설정 변경 (영어/한국어) |
 | `cast sync` | 소스 업데이트 및 스킬 갱신 |
 
 ## 동작 원리

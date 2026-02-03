@@ -65,6 +65,7 @@ cast sync
 | `cast use <source>/<skill>` | Install a specific skill directly. |
 | `cast list` | Show all currently installed skills in this project. |
 | `cast remove <skill>` | Remove an installed skill. |
+| `cast config lang <en\|ko>` | Set language preference (English/Korean). |
 | `cast sync` | Update sources and refresh installed skills. |
 
 ## Directory Structure

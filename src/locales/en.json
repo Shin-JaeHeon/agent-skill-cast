@@ -67,5 +67,8 @@
     "usage_ex_1": "   cast source add https://github.com/user/skills",
     "usage_ex_2": "   cast use skills/helper",
     "info_linked_source": " ({displayPath})",
-    "info_local_source": " [local]"
+    "info_local_source": " [local]",
+    "usage_config": "   cast config lang <en|ko>     - Set Language",
+    "success_config_set": "Configuration updated: {key} = {value}",
+    "error_config_invalid": "Invalid configuration value."
 }
