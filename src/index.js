@@ -221,17 +221,7 @@ class CastManager {
 
     // 1. 초기화 (Init)
     async init() {
-        console.log(`
-${styles.magenta}   _______  _______  _______ 
-   (  ___  )(  ____ \\(  ____ \\
-   | (   ) || (    \\/| (    \\/
-   | (___) || (_____ | |      
-   |  ___  |(_____  )| |      
-   | (   ) |      ) || |      
-   | )   ( |/\\____) || (____/\\
-   |/     \\|\\_______)(_______/ ${styles.reset}
-   ${styles.bright}${t('header_title')}${styles.reset}
-        `);
+        console.log(`\n   ${styles.bright}${t('header_title')}${styles.reset}\n`);
         log(t('init_msg'), styles.bright);
 
         ensureDir(SOURCES_DIR);
