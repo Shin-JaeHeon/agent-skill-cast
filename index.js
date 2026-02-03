@@ -65,12 +65,14 @@ function resolveHome(filepath) {
 }
 
 // --- Config 관리 ---
-const DEFAULT_CONFIG = { sources: {}, active: [] };
+const DEFAULT_CONFIG = { sources: {} };
 
 function loadConfig() {
     if (!fs.existsSync(CONFIG_FILE)) return { ...DEFAULT_CONFIG };
     try {
-        return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+        const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+        if (config.active) delete config.active;
+        return config;
     } catch (e) {
         return { ...DEFAULT_CONFIG };
     }
@@ -182,7 +184,12 @@ function linkOrCopy(source, dest, isDirectory = false) {
 // --- 메인 로직 클래스 ---
 class CastManager {
     constructor() {
+        const rawConfig = fs.existsSync(CONFIG_FILE) ? JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8')) : null;
         this.config = loadConfig();
+        // 마이그레이션: active 필드가 있으면 제거하고 저장
+        if (rawConfig && rawConfig.active) {
+            saveConfig(this.config);
+        }
     }
 
     // 1. 초기화 (Init)
@@ -362,6 +369,53 @@ ${styles.magenta}   _______  _______  _______
         await this._activateSkill(sourceName, skillName);
     }
 
+    // 유틸리티: 현재 활성화된 스킬 목록 (심볼릭 링크 조사)
+    _getActiveSkills() {
+        const active = [];
+        const agentFolders = [
+            { dir: CLAUDE_SKILLS_DIR, type: 'claude' },
+            { dir: GEMINI_SKILLS_DIR, type: 'gemini' },
+            { dir: CODEX_SKILLS_DIR, type: 'codex' }
+        ];
+
+        agentFolders.forEach(agent => {
+            if (!fs.existsSync(agent.dir)) return;
+            const items = fs.readdirSync(agent.dir);
+            items.forEach(item => {
+                const fullPath = path.join(agent.dir, item);
+                try {
+                    const lstat = fs.lstatSync(fullPath);
+                    if (lstat.isSymbolicLink()) {
+                        const targetPath = fs.realpathSync(fullPath);
+                        // SOURCES_DIR 내부를 가리키는지 확인하고 key 생성
+                        if (targetPath.startsWith(SOURCES_DIR)) {
+                            const relative = path.relative(SOURCES_DIR, targetPath);
+                            // relative is like "source-name/.claude/skills/skill-name" or "source-name/skill-name"
+                            const parts = relative.split(path.sep);
+                            const sourceName = parts[0];
+                            const skillName = parts[parts.length - 1];
+                            active.push({
+                                key: `${sourceName}/${skillName}`,
+                                path: targetPath,
+                                name: skillName,
+                                agent: agent.type
+                            });
+                        } else {
+                            // 외부 경로인 경우
+                            active.push({
+                                key: `local/${item}`,
+                                path: targetPath,
+                                name: item,
+                                agent: agent.type
+                            });
+                        }
+                    }
+                } catch (e) { /* 무시 */ }
+            });
+        });
+        return active;
+    }
+
     async _activateSkill(sourceName, skillName, skillPath = null) {
         const skillKey = `${sourceName}/${skillName}`;
 
@@ -390,16 +444,6 @@ ${styles.magenta}   _______  _______  _______
 
         if (!fs.existsSync(sourcePath)) {
             return log(`❌ 스킬을 찾을 수 없습니다: ${skillKey}`, styles.red);
-        }
-
-        // Active 목록에 추가 (경로 정보도 저장)
-        const activeEntry = { key: skillKey, path: sourcePath };
-        const existingIdx = this.config.active.findIndex(a =>
-            (typeof a === 'string' ? a : a.key) === skillKey
-        );
-        if (existingIdx === -1) {
-            this.config.active.push(activeEntry);
-            saveConfig(this.config);
         }
 
         // .claude/skills 폴더에 폴더 전체를 symlink
@@ -432,85 +476,56 @@ ${styles.magenta}   _______  _______  _______
             }
         }
 
-        // B. Active 스킬 링크 갱신
-        ensureDir(CLAUDE_SKILLS_DIR);
-        let linkCount = 0;
+        // B. Active 스킬 링크 갱신 (선택 사항: 현재는 소스 업데이트만 수행하거나, 기존 링크를 소스 경로에 맞춰 재연결 가능)
+        const activeSkills = this._getActiveSkills();
+        let linkCount = activeSkills.length;
 
-        for (const activeItem of this.config.active) {
-            // 하위 호환성: 문자열 또는 객체 지원
-            const skillKey = typeof activeItem === 'string' ? activeItem : activeItem.key;
-            let sourcePath = typeof activeItem === 'object' ? activeItem.path : null;
-
-            if (!sourcePath) {
-                // 기존 방식: SOURCES_DIR/key 경로
-                sourcePath = path.join(SOURCES_DIR, skillKey);
-
-                // 없으면 2단계 검색 시도
-                if (!fs.existsSync(sourcePath)) {
-                    const parts = skillKey.split('/');
-                    if (parts.length >= 2) {
-                        const sourceDir = path.join(SOURCES_DIR, parts[0]);
-                        const skillName = parts.slice(1).join('/');
-                        const searchPaths = [
-                            path.join(sourceDir, '.claude', 'skills', skillName),
-                            path.join(sourceDir, '.gemini', 'skills', skillName),
-                            path.join(sourceDir, '.codex', 'skills', skillName),
-                            path.join(sourceDir, skillName)
-                        ];
-                        for (const p of searchPaths) {
-                            if (fs.existsSync(p)) {
-                                sourcePath = p;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
+        for (const skill of activeSkills) {
+            const sourcePath = skill.path;
             if (!fs.existsSync(sourcePath)) {
-                log(`   ⚠️  ${skillKey} 폴더 없음 (스킵)`, styles.yellow);
+                log(`   ⚠️  ${skill.key} 소스 폴더 없음 (스킵)`, styles.yellow);
+                linkCount--;
                 continue;
             }
 
-            const skillName = path.basename(skillKey);
-            const destPath = path.join(CLAUDE_SKILLS_DIR, skillName);
+            const agentDir = skill.agent === 'claude' ? CLAUDE_SKILLS_DIR :
+                skill.agent === 'gemini' ? GEMINI_SKILLS_DIR : CODEX_SKILLS_DIR;
+            const destPath = path.join(agentDir, skill.name);
 
-            linkOrCopy(sourcePath, destPath, true); // 폴더로 처리
-            linkCount++;
+            // 링크 재정의 (업데이트된 소스 반영)
+            linkOrCopy(sourcePath, destPath, true);
         }
 
-        log(`\n✨ 동기화 완료! ${linkCount}개의 스킬이 장착되어 있습니다.`, styles.green);
+        log(`\n✨ 동기화 완료! ${linkCount}개의 스킬이 유지되고 있습니다.`, styles.green);
     }
 
     // 6. 배포 (Publish)
     async publish(skillName) {
         log("\n📤 스킬 배포", styles.bright);
 
-        let targetSkillKey;
+        const activeSkills = this._getActiveSkills();
 
         if (skillName) {
             // 스킬명으로 검색
-            const found = this.config.active.find(item => {
-                const key = typeof item === 'string' ? item : item.key;
-                return path.basename(key).toLowerCase() === skillName.toLowerCase() ||
-                    key.toLowerCase().includes(skillName.toLowerCase());
+            const found = activeSkills.find(item => {
+                return item.name.toLowerCase() === skillName.toLowerCase() ||
+                    item.key.toLowerCase().includes(skillName.toLowerCase());
             });
-            targetSkillKey = found ? (typeof found === 'string' ? found : found.key) : null;
+            targetSkillKey = found ? found.key : null;
         } else {
             // 대화형 선택
-            if (this.config.active.length === 0) {
+            if (activeSkills.length === 0) {
                 return log("❌ 배포할 활성 스킬이 없습니다.", styles.red);
             }
 
             log("\n🔮 활성 스킬 목록:", styles.bright);
-            this.config.active.forEach((item, i) => {
-                const key = typeof item === 'string' ? item : item.key;
-                console.log(`  [${i + 1}] ${key}`);
+            activeSkills.forEach((item, i) => {
+                console.log(`  [${i + 1}] ${item.key}`);
             });
 
             const idx = await askQuestion("\n배포할 스킬 번호: ");
-            const selected = this.config.active[parseInt(idx) - 1];
-            targetSkillKey = typeof selected === 'string' ? selected : selected?.key;
+            const selected = activeSkills[parseInt(idx) - 1];
+            targetSkillKey = selected?.key;
         }
 
         if (!targetSkillKey) {
@@ -530,7 +545,7 @@ ${styles.magenta}   _______  _______  _______
 
         try {
             runCmd('git add .', sourceDir);
-            runCmd(`git commit -m "${commitMsg || 'Update skill'}"`, sourceDir);
+            runCmd(`git commit -m "${commitMsg || '스킬 업데이트'}"`, sourceDir);
 
             try {
                 runCmd('git pull --rebase origin main', sourceDir);
@@ -621,38 +636,36 @@ ${styles.magenta}   _______  _______  _______
 
     // 8. 제거 (Remove) - 보너스
     async remove(skillName) {
+        const activeSkills = this._getActiveSkills();
+
         if (!skillName) {
-            if (this.config.active.length === 0) {
+            if (activeSkills.length === 0) {
                 return log("❌ 제거할 스킬이 없습니다.", styles.red);
             }
             log("\n🗑️  제거할 스킬 선택:", styles.bright);
-            this.config.active.forEach((item, i) => {
-                const key = typeof item === 'string' ? item : item.key;
-                console.log(`  [${i + 1}] ${key}`);
+            activeSkills.forEach((item, i) => {
+                console.log(`  [${i + 1}] ${item.key}`);
             });
             const idx = await askQuestion("\n번호: ");
-            const selected = this.config.active[parseInt(idx) - 1];
-            skillName = typeof selected === 'string' ? selected : selected?.key;
+            const selected = activeSkills[parseInt(idx) - 1];
+            skillName = selected?.key;
         }
 
-        const targetIdx = this.config.active.findIndex(item => {
-            const key = typeof item === 'string' ? item : item.key;
-            return key === skillName || path.basename(key).toLowerCase() === skillName.toLowerCase();
+        const targetIdx = activeSkills.findIndex(item => {
+            return item.key === skillName || item.name.toLowerCase() === skillName.toLowerCase();
         });
 
         if (targetIdx === -1) {
             return log("❌ 스킬을 찾을 수 없습니다.", styles.red);
         }
 
-        const targetItem = this.config.active[targetIdx];
-        const targetKey = typeof targetItem === 'string' ? targetItem : targetItem.key;
-
-        // Active에서 제거
-        this.config.active.splice(targetIdx, 1);
-        saveConfig(this.config);
+        const targetItem = activeSkills[targetIdx];
+        const targetKey = targetItem.key;
 
         // 심볼릭 링크/폴더 제거
-        const destPath = path.join(CLAUDE_SKILLS_DIR, path.basename(targetKey));
+        const agentDir = targetItem.agent === 'claude' ? CLAUDE_SKILLS_DIR :
+            targetItem.agent === 'gemini' ? GEMINI_SKILLS_DIR : CODEX_SKILLS_DIR;
+        const destPath = path.join(agentDir, targetItem.name);
         if (fs.existsSync(destPath)) {
             fs.rmSync(destPath, { recursive: true, force: true });
         }
@@ -685,31 +698,18 @@ ${styles.magenta}   _______  _______  _______
 
         // A. 해당 소스에 포함된 active 스킬들 식별 및 제거
         const prefix = `${sourceName}/`;
-        const activeSkills = this.config.active.filter(a => {
-            const key = typeof a === 'string' ? a : a.key;
-            return key.startsWith(prefix);
-        });
+        const activeSkills = this._getActiveSkills().filter(a => a.key.startsWith(prefix));
 
         if (activeSkills.length > 0) {
             log(`   🗑️  장착된 스킬 ${activeSkills.length}개 제거 중...`, styles.yellow);
             for (const skill of activeSkills) {
-                const key = typeof skill === 'string' ? skill : skill.key;
-                const skillName = path.basename(key);
-
-                // 각 에이전트 폴더에서 링크 제거
-                [CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR].forEach(dir => {
-                    const destPath = path.join(dir, skillName);
-                    if (fs.existsSync(destPath)) {
-                        fs.rmSync(destPath, { recursive: true, force: true });
-                    }
-                });
+                const agentDir = skill.agent === 'claude' ? CLAUDE_SKILLS_DIR :
+                    skill.agent === 'gemini' ? GEMINI_SKILLS_DIR : CODEX_SKILLS_DIR;
+                const destPath = path.join(agentDir, skill.name);
+                if (fs.existsSync(destPath)) {
+                    fs.rmSync(destPath, { recursive: true, force: true });
+                }
             }
-
-            // config.active에서 제외
-            this.config.active = this.config.active.filter(a => {
-                const key = typeof a === 'string' ? a : a.key;
-                return !key.startsWith(prefix);
-            });
         }
 
         // B. Config에서 소스 제거
