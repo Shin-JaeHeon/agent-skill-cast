@@ -17,6 +17,34 @@ const { execSync } = require('child_process');
 const os = require('os');
 const readline = require('readline');
 
+// --- i18n ---
+let messages = {};
+try {
+    const localeDir = path.join(__dirname, 'locales');
+    let lang = 'en'; // Default
+    const sysLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
+    if (sysLocale.startsWith('ko') || (process.env.LANG && process.env.LANG.includes('KR'))) {
+        lang = 'ko';
+    }
+    if (process.env.ASC_LANG) lang = process.env.ASC_LANG;
+
+    const localePath = path.join(localeDir, `${lang}.json`);
+    const defaultPath = path.join(localeDir, 'en.json');
+    if (fs.existsSync(localePath)) {
+        messages = require(localePath);
+    } else {
+        messages = require(defaultPath);
+    }
+} catch (e) { messages = {}; }
+
+function t(key, params = {}) {
+    let msg = messages[key] || key;
+    for (const k of Object.keys(params)) {
+        msg = msg.replace(new RegExp(`\\{${k}\\}`, 'g'), params[k]);
+    }
+    return msg;
+}
+
 // --- 상수 및 경로 정의 ---
 const HOME_DIR = os.homedir();
 const CONFIG_FILE = path.join(HOME_DIR, '.asc-config.json');
@@ -202,9 +230,9 @@ ${styles.magenta}   _______  _______  _______
    | (   ) |      ) || |      
    | )   ( |/\\____) || (____/\\
    |/     \\|\\_______)(_______/ ${styles.reset}
-   ${styles.bright}Agent Skill Cast v2.0${styles.reset}
+   ${styles.bright}${t('header_title')}${styles.reset}
         `);
-        log("🚀 ASC: 에이전트 스킬 동기화 초기화\n", styles.bright);
+        log(t('init_msg'), styles.bright);
 
         ensureDir(SOURCES_DIR);
         ensureDir(CLAUDE_SKILLS_DIR);
@@ -214,23 +242,23 @@ ${styles.magenta}   _______  _______  _______
         // 기존 config 유지, 없으면 생성
         if (!fs.existsSync(CONFIG_FILE)) {
             saveConfig(DEFAULT_CONFIG);
-            log(`✅ 설정 파일 생성됨: ${CONFIG_FILE}`, styles.green);
+            log(t('config_created', { path: CONFIG_FILE }), styles.green);
         } else {
-            log(`✅ 기존 설정 파일 확인됨: ${CONFIG_FILE}`, styles.green);
+            log(t('config_exists', { path: CONFIG_FILE }), styles.green);
         }
 
-        log("\n💡 다음 단계:", styles.cyan);
-        log("   1. cast clone <URL>  - 외부 Git 저장소 추가");
-        log("   2. cast import <경로> - 로컬 폴더 추가");
-        log("   3. cast use          - 스킬 장착");
+        log(t('next_steps'), styles.cyan);
+        log(t('cmd_clone'));
+        log(t('cmd_import'));
+        log(t('cmd_use'));
     }
 
     // 2. 소스 추가 (Add Source) - 자동 감지
     async addSource(input) {
         if (!input) {
-            input = await askQuestion("🔗 추가할 소스 (URL 또는 로컬 경로): ");
+            input = await askQuestion(t('prompt_source'));
         }
-        if (!input) return log("❌ 입력이 없습니다.", styles.red);
+        if (!input) return log(t('error_no_input'), styles.red);
 
         const target = input.trim();
         const isGit = target.startsWith('http') || target.startsWith('git@') || target.endsWith('.git');
@@ -248,28 +276,28 @@ ${styles.magenta}   _______  _______  _______
         const destDir = path.join(SOURCES_DIR, repoName);
 
         if (fs.existsSync(destDir)) {
-            log(`⚠️  '${repoName}' 소스가 이미 존재합니다. 업데이트합니다.`, styles.yellow);
+            log(t('warn_source_exists', { repoName }), styles.yellow);
             try {
                 runCmd('git pull origin main', destDir);
-                log(`✅ '${repoName}' 소스 업데이트 완료!`, styles.green);
+                log(t('success_source_updated', { repoName }), styles.green);
             } catch (e) {
                 runCmd('git pull', destDir, true);
             }
         } else {
-            log(`\n📦 소스 저장소 복제 중: ${repoName}`, styles.cyan);
+            log(t('info_cloning', { repoName }), styles.cyan);
             try {
                 ensureDir(SOURCES_DIR);
                 execSync(`git clone ${externalUrl} "${destDir}"`, { stdio: 'inherit' });
-                log(`✅ '${repoName}' 소스 추가 완료!`, styles.green);
+                log(t('success_source_added', { repoName }), styles.green);
             } catch (e) {
-                log(`❌ 저장소 복제 실패. URL을 확인하세요.`, styles.red);
+                log(t('error_clone_fail'), styles.red);
                 return;
             }
         }
 
         this.config.sources[repoName] = { type: 'git', url: externalUrl };
         saveConfig(this.config);
-        log(`\n💡 'cast use ${repoName}/<스킬명>'으로 스킬을 장착하세요.`, styles.yellow);
+        log(t('info_use_hint', { repoName }), styles.yellow);
     }
 
     // 내부: 로컬 폴더 추가 (Import)
@@ -277,7 +305,7 @@ ${styles.magenta}   _______  _______  _______
         const resolvedPath = fs.realpathSync(resolveHome(localPath));
 
         if (!fs.existsSync(resolvedPath)) {
-            return log(`❌ 경로가 존재하지 않습니다: ${resolvedPath}`, styles.red);
+            return log(t('error_path_not_found', { path: resolvedPath }), styles.red);
         }
 
         const sourceName = path.basename(resolvedPath);
@@ -292,22 +320,22 @@ ${styles.magenta}   _______  _______  _______
         try {
             const symlinkType = os.platform() === 'win32' ? 'junction' : 'dir';
             fs.symlinkSync(resolvedPath, linkPath, symlinkType);
-            log(`✅ '${sourceName}' 로컬 소스 연결 완료!`, styles.green);
+            log(t('success_local_source', { sourceName }), styles.green);
         } catch (e) {
-            log(`❌ 심볼릭 링크 생성 실패: ${e.message}`, styles.red);
+            log(t('error_symlink', { message: e.message }), styles.red);
             return;
         }
 
         this.config.sources[sourceName] = { type: 'local', path: resolvedPath };
         saveConfig(this.config);
-        log(`\n💡 'cast use ${sourceName}/<스킬명>'으로 스킬을 장착하세요.`, styles.yellow);
+        log(t('info_use_hint_simple', { sourceName }), styles.yellow);
     }
 
     // 4. 스킬 장착 (Use)
     async use(query) {
         const sourceNames = Object.keys(this.config.sources);
         if (sourceNames.length === 0) {
-            log("❌ 등록된 소스가 없습니다. 'cast clone' 또는 'cast import'를 먼저 실행하세요.", styles.red);
+            log(t('error_no_sources'), styles.red);
             return;
         }
 
@@ -320,18 +348,18 @@ ${styles.magenta}   _______  _______  _______
             skillName = parts.slice(1).join('/');
         } else {
             // 대화형 선택
-            log("\n📚 등록된 소스 목록:", styles.bright);
+            log(t('header_source_list'), styles.bright);
             sourceNames.forEach((name, i) => {
                 const info = this.config.sources[name];
                 const typeIcon = info.type === 'git' ? '🌐' : '📁';
                 console.log(`  [${i + 1}] ${typeIcon} ${name}`);
             });
 
-            const sourceIdx = await askQuestion("\n소스 번호 선택: ");
+            const sourceIdx = await askQuestion(t('prompt_source_select'));
             sourceName = sourceNames[parseInt(sourceIdx) - 1];
 
             if (!sourceName) {
-                return log("❌ 잘못된 선택입니다.", styles.red);
+                return log(t('error_invalid_choice'), styles.red);
             }
 
             // 해당 소스의 스킬 목록 (폴더만)
@@ -339,10 +367,10 @@ ${styles.magenta}   _______  _______  _______
             const skills = findSkills(sourceDir);
 
             if (skills.length === 0) {
-                return log(`⚠️  '${sourceName}'에서 스킬을 찾을 수 없습니다.`, styles.yellow);
+                return log(t('warn_no_skills', { sourceName }), styles.yellow);
             }
 
-            log(`\n📂 '${sourceName}'의 스킬 목록:`, styles.bright);
+            log(t('header_skills_list', { sourceName }), styles.bright);
             skills.forEach((skill, i) => {
                 const labelColor = skill.location === 'claude' ? styles.cyan :
                     skill.location === 'gemini' ? styles.yellow :
@@ -351,7 +379,7 @@ ${styles.magenta}   _______  _______  _______
                 console.log(`  [${i + 1}] 📁 ${skill.name} ${locationTag}${styles.reset}`);
             });
 
-            const skillIdx = await askQuestion("\n장착할 스킬 번호 (쉼표로 다중 선택): ");
+            const skillIdx = await askQuestion(t('prompt_skill_select'));
             const indices = skillIdx.split(',').map(s => parseInt(s.trim()) - 1);
 
             for (const idx of indices) {
@@ -435,40 +463,40 @@ ${styles.magenta}   _______  _______  _______
                 }
             }
             if (!sourcePath) {
-                return log(`❌ 스킬을 찾을 수 없습니다: ${skillKey}`, styles.red);
+                return log(t('error_skill_not_found', { key: skillKey }), styles.red);
             }
         }
 
         if (!fs.existsSync(sourcePath)) {
-            return log(`❌ 스킬을 찾을 수 없습니다: ${skillKey}`, styles.red);
+            return log(t('error_skill_not_found', { key: skillKey }), styles.red);
         }
 
         // .claude/skills 폴더에 폴더 전체를 symlink
         const destPath = path.join(CLAUDE_SKILLS_DIR, skillName);
 
         if (fs.existsSync(destPath)) {
-            return log(`⚠️  '${skillName}' 스킬이 이미 존재합니다.`, styles.yellow);
+            return log(t('warn_skill_exists', { skillName }), styles.yellow);
         }
 
         ensureDir(CLAUDE_SKILLS_DIR);
         linkOrCopy(sourcePath, destPath, true); // 항상 폴더로 처리
 
-        log(`✨ 📂 '${skillName}' 스킬 장착 완료!`, styles.green);
+        log(t('success_skill_installed', { skillName }), styles.green);
     }
 
     // 5. 동기화 (Sync)
     sync() {
-        log("\n🔄 스킬 동기화 중...", styles.bright);
+        log(t('info_syncing'), styles.bright);
 
         // A. 소스 업데이트 (Git 소스만)
         for (const [name, info] of Object.entries(this.config.sources)) {
             const sourceDir = path.join(SOURCES_DIR, name);
             if (info.type === 'git' && fs.existsSync(sourceDir)) {
-                log(`   📥 ${name} 업데이트 중...`, styles.cyan);
+                log(t('info_updating', { name }), styles.cyan);
                 try {
                     runCmd('git pull', sourceDir, true);
                 } catch (e) {
-                    log(`   ⚠️  ${name} 업데이트 실패 (오프라인?)`, styles.yellow);
+                    log(t('warn_update_fail', { name }), styles.yellow);
                 }
             }
         }
@@ -480,7 +508,7 @@ ${styles.magenta}   _______  _______  _______
         for (const skill of activeSkills) {
             const sourcePath = skill.path;
             if (!fs.existsSync(sourcePath)) {
-                log(`   ⚠️  ${skill.key} 소스 폴더 없음 (스킵)`, styles.yellow);
+                log(t('warn_source_missing', { key: skill.key }), styles.yellow);
                 linkCount--;
                 continue;
             }
@@ -493,7 +521,7 @@ ${styles.magenta}   _______  _______  _______
             linkOrCopy(sourcePath, destPath, true);
         }
 
-        log(`\n✨ 동기화 완료! ${linkCount}개의 스킬이 유지되고 있습니다.`, styles.green);
+        log(t('success_sync_done', { count: linkCount }), styles.green);
     }
 
     // 7. 목록 (List) - 전체 상태 (스킬 + 소스)
@@ -504,7 +532,7 @@ ${styles.magenta}   _______  _______  _______
             { name: 'Gemini', dir: GEMINI_SKILLS_DIR, color: styles.yellow }
         ];
 
-        log("\n🧙‍♂️ 현재 프로젝트의 에이전트 스킬", styles.bright);
+        log(t('header_project_skills'), styles.bright);
 
         let foundAny = false;
         agentFolders.forEach(agent => {
@@ -520,7 +548,7 @@ ${styles.magenta}   _______  _______  _______
 
                 if (skills.length > 0) {
                     foundAny = true;
-                    log(`\n ${agent.color}[${agent.name}]${styles.reset} 스킬:`, styles.bright);
+                    log(t('agent_skills_header', { color: agent.color, agent: agent.name, reset: styles.reset }), styles.bright);
                     skills.forEach(skill => {
                         const fullPath = path.join(agent.dir, skill);
                         let sourceInfo = "";
@@ -538,9 +566,9 @@ ${styles.magenta}   _______  _______  _______
                                     displayPath = path.basename(targetPath);
                                 }
 
-                                sourceInfo = ` ${styles.blue}(🔗 ${displayPath})${styles.reset}`;
+                                sourceInfo = ` ${styles.blue}${t('info_linked_source', { displayPath })}${styles.reset}`;
                             } else {
-                                sourceInfo = ` ${styles.yellow}[local]${styles.reset}`;
+                                sourceInfo = ` ${styles.yellow}${t('info_local_source')}${styles.reset}`;
                             }
                         } catch (e) { /* ignore */ }
 
@@ -551,8 +579,8 @@ ${styles.magenta}   _______  _______  _______
         });
 
         if (!foundAny) {
-            log("   장착된 프로젝트 스킬이 없습니다.", styles.yellow);
-            log("   💡 'cast use'로 스킬을 장착하세요.", styles.cyan);
+            log(t('warn_no_project_skills'), styles.yellow);
+            log(t('info_use_hint_general'), styles.cyan);
         }
 
         this.listSources();
@@ -560,10 +588,10 @@ ${styles.magenta}   _______  _______  _______
 
     // 7.1 소스 목록만 보기
     listSources() {
-        log("\n📚 등록된 소스 목록", styles.bright);
+        log(t('header_registered_sources'), styles.bright);
         const sourceNames = Object.keys(this.config.sources);
         if (sourceNames.length === 0) {
-            log("   등록된 소스가 없습니다.", styles.yellow);
+            log(t('warn_no_registered_sources'), styles.yellow);
         } else {
             for (const [name, info] of Object.entries(this.config.sources)) {
                 const typeIcon = info.type === 'git' ? '🌐' : '📁';
@@ -579,13 +607,13 @@ ${styles.magenta}   _______  _______  _______
 
         if (!skillName) {
             if (activeSkills.length === 0) {
-                return log("❌ 제거할 스킬이 없습니다.", styles.red);
+                return log(t('error_no_skill_to_remove'), styles.red);
             }
-            log("\n🗑️  제거할 스킬 선택:", styles.bright);
+            log(t('header_remove_skill'), styles.bright);
             activeSkills.forEach((item, i) => {
                 console.log(`  [${i + 1}] ${item.key}`);
             });
-            const idx = await askQuestion("\n번호: ");
+            const idx = await askQuestion(t('prompt_number'));
             const selected = activeSkills[parseInt(idx) - 1];
             skillName = selected?.key;
         }
@@ -609,7 +637,7 @@ ${styles.magenta}   _______  _______  _______
             fs.rmSync(destPath, { recursive: true, force: true });
         }
 
-        log(`✅ 📂 '${path.basename(targetKey)}' 스킬이 제거되었습니다.`, styles.green);
+        log(t('success_skill_removed', { name: path.basename(targetKey) }), styles.green);
     }
 
     // 9. 소스 제거 (Remove Source)
@@ -617,30 +645,30 @@ ${styles.magenta}   _______  _______  _______
         if (!sourceName) {
             const sourceNames = Object.keys(this.config.sources);
             if (sourceNames.length === 0) {
-                return log("❌ 등록된 소스가 없습니다.", styles.red);
+                return log(t('error_no_sources'), styles.red);
             }
-            log("\n🗑️  제거할 소스 선택:", styles.bright);
+            log(t('header_remove_source'), styles.bright);
             sourceNames.forEach((name, i) => {
                 const info = this.config.sources[name];
                 const typeIcon = info.type === 'git' ? '🌐' : '📁';
                 console.log(`  [${i + 1}] ${typeIcon} ${name}`);
             });
-            const idx = await askQuestion("\n번호: ");
+            const idx = await askQuestion(t('prompt_number'));
             sourceName = sourceNames[parseInt(idx) - 1];
         }
 
         if (!sourceName || !this.config.sources[sourceName]) {
-            return log("❌ 소스를 찾을 수 없습니다.", styles.red);
+            return log(t('error_source_not_found'), styles.red);
         }
 
-        log(`\n🔄 소스 '${sourceName}' 및 관련 스킬 제거 중...`, styles.cyan);
+        log(t('info_removing_source', { sourceName }), styles.cyan);
 
         // A. 해당 소스에 포함된 active 스킬들 식별 및 제거
         const prefix = `${sourceName}/`;
         const activeSkills = this._getActiveSkills().filter(a => a.key.startsWith(prefix));
 
         if (activeSkills.length > 0) {
-            log(`   🗑️  장착된 스킬 ${activeSkills.length}개 제거 중...`, styles.yellow);
+            log(t('info_removing_skills_count', { count: activeSkills.length }), styles.yellow);
             for (const skill of activeSkills) {
                 const agentDir = skill.agent === 'claude' ? CLAUDE_SKILLS_DIR :
                     skill.agent === 'gemini' ? GEMINI_SKILLS_DIR : CODEX_SKILLS_DIR;
@@ -666,11 +694,11 @@ ${styles.magenta}   _______  _______  _______
                     fs.rmSync(sourcePath, { recursive: true, force: true });
                 }
             } catch (e) {
-                log(`⚠️  소스 폴더 제거 중 오류 발생: ${e.message}`, styles.yellow);
+                log(t('warn_remove_error', { message: e.message }), styles.yellow);
             }
         }
 
-        log(`\n✅ 소스 '${sourceName}'과 관련 스킬들이 모두 제거되었습니다.`, styles.green);
+        log(t('success_source_removed', { sourceName }), styles.green);
     }
 }
 
@@ -696,10 +724,10 @@ async function main() {
                 manager.listSources();
             } else {
                 console.log(`
-${styles.bright}사용법 (Source 관리):${styles.reset}
-  cast source add <URL|Path>  - 소스 추가 (Git 또는 로컬)
-  cast source list            - 등록된 소스 목록
-  cast source remove <이름>    - 소스 제거
+${styles.bright}${t('usage_source_header')}${styles.reset}
+${t('usage_source_add')}
+${t('usage_source_list')}
+${t('usage_source_remove')}
                 `);
             }
             break;
@@ -718,21 +746,21 @@ ${styles.bright}사용법 (Source 관리):${styles.reset}
             break;
         default:
             console.log(`
-${styles.magenta}🧙‍♂️ Agent Skill Cast (ASC) v2.0${styles.reset}
+${styles.magenta}${t('header_title')}${styles.reset}
 
-${styles.bright}사용법:${styles.reset}
-  cast init                    - 초기화
-  cast source add <URL|Path>   - 소스 추가 (Git 또는 로컬 경로)
-  cast source list             - 등록된 소스 목록
-  cast source remove <이름>     - 소스 제거
-  cast use [소스/스킬]          - 스킬 장착 (대화형 또는 직접 지정)
-  cast sync                    - 소스 업데이트 및 스킬 동기화
-  cast list                    - 장착된 스킬 목록
-  cast remove [스킬명]          - 스킬 제거
+${styles.bright}${t('usage_header')}${styles.reset}
+${t('usage_init')}
+${t('usage_source_add_general')}
+${t('usage_source_list_general')}
+${t('usage_source_remove_general')}
+${t('usage_use')}
+${t('usage_sync')}
+${t('usage_list')}
+${t('usage_remove')}
 
-${styles.cyan}예시:${styles.reset}
-  cast source add https://github.com/user/skills
-  cast use skills/helper
+${styles.cyan}${t('usage_example')}${styles.reset}
+${t('usage_ex_1')}
+${t('usage_ex_2')}
             `);
     }
 }
