@@ -399,6 +399,10 @@ ${styles.magenta}   _______  _______  _______
         // .claude/skills 폴더에 폴더 전체를 symlink
         const destPath = path.join(CLAUDE_SKILLS_DIR, skillName);
 
+        if (fs.existsSync(destPath)) {
+            return log(`⚠️  '${skillName}' 스킬이 이미 존재합니다.`, styles.yellow);
+        }
+
         ensureDir(CLAUDE_SKILLS_DIR);
         linkOrCopy(sourcePath, destPath, true); // 항상 폴더로 처리
 
