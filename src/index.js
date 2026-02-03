@@ -277,7 +277,7 @@ class CastManager {
         if (fs.existsSync(destDir)) {
             log(t('warn_source_exists', { repoName }), styles.yellow);
             try {
-                runCmd('git pull origin main', destDir);
+                runCmd('git pull', destDir);
                 log(t('success_source_updated', { repoName }), styles.green);
             } catch (e) {
                 runCmd('git pull', destDir, true);
