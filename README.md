@@ -1,88 +1,244 @@
-# 🧙‍♂️ Agent Skill Cast
+# Agent Skill Cast
 
-**"Cast" your AI agent skills across your team.**
+**Cast your AI agent skills across your team.**
 
-Agent Skill Cast is a CLI tool that makes it easy to share and sync skills (folders) for AI agents like Claude, Gemini, and Codex. Instead of copy-pasting skill folders or struggling with git submodules for just a few files, Agent Skill Cast lets you "cast" skills from a central repository (or local folder) directly into your project.
+[![npm version](https://img.shields.io/npm/v/agent-skill-cast.svg)](https://www.npmjs.com/package/agent-skill-cast)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Why use this?
+---
 
-- **Selective Sync**: You don't need the entire repository. Pick only the skills you need.
-- **Multi-Agent Support**: Works with `.claude/skills`, `.gemini/skills`, and `.codex/skills`.
-- **Live Updates**: Run `cast source sync` to pull the latest changes from the source and update your project instantly.
-- **Local & Remote**: Support both Git repositories and local folders as skill sources.
+## Why?
+
+> *"I made a useful skill on the mobile branch, but I want to use it on main too... cherry-picking is such a pain..."*
+> 
+> *"Repo A and B are both React projects, and 90% of skills are identical. Managing copies is hell..."*
+
+**Don't let skills be tied to branches or repos.**
+
+Agent Skill Cast lets you pick only the skills you need from a central repository and **cast** them into your project.
+
+---
+
+## Features
+
+| | |
+|---|---|
+| **Selective Sync** | Pick only the skills you need, not the entire repository |
+| **Multi-Agent** | Auto-manages Claude, Gemini, Codex folders |
+| **Instant Updates** | `cast source sync` keeps everything up-to-date |
+| **Local & Remote** | Supports both Git repos and local folders |
+
+---
 
 ## Installation
-
-Prerequisites: Node.js is required. Install globally via npm:
 
 ```bash
 npm install -g agent-skill-cast
 ```
 
-## Getting Started
+> Requires Node.js
 
-### 1. Initialize (Init)
-Initialize Agent Skill Cast global configuration. (Run this once)
+---
 
+## Quick Start
+
+### Step 1. Initialize
 ```bash
 cast init
 ```
 
-### 2. Add Source (Register)
-Register a skill repository (Source). Once registered, you can use these skills in any project.
-
+### Step 2. Register Source
 ```bash
-# Add a GitHub repository (Recommended)
-cast source add https://github.com/my-team/awesome-skills
+# GitHub repository
+cast source add https://github.com/my-team/shared-skills
 
-# Or add a local folder (Great for development/testing)
-cast source add ~/projects/my-personal-skills
+# Or local folder
+cast source add ~/my-personal-skills
 ```
 
-### 3. Cast Skills (Use)
-Select skills from your registered sources and "cast" them into your current project.
-
+### Step 3. Cast Skills
 ```bash
 cast use
+# Interactive menu - select skill numbers (comma-separated for multiple)
 ```
-*An interactive menu will appear. Enter the **number** corresponding to your choice. (Use commas for multiple selections)*
 
-### 4. Verify
-Check your project folder!
-You will see that the selected skills are symlinked into `.claude/skills/`. Your AI agent (e.g., Claude) can now see and use these skills.
+### Step 4. Verify
+```bash
+cast list
+# Symlinks created in .claude/skills/
+```
 
-### 5. Sync
-Has the source repository been updated with new skills or fixes?
-Run the `sync` command to pull the latest changes and refresh your installed skills.
-
+### Step 5. Sync (when source is updated)
 ```bash
 cast source sync
 ```
 
+---
+
 ## Commands
 
+### Basic Commands
+
 | Command | Description |
-|---|---|
-| `cast init` | Initialize Agent Skill Cast global configuration. |
-| `cast source add <URL/Path>` | Register a skill source (Git Repo or Local Path). |
-| `cast source list` | Show all registered sources. |
-| `cast source remove <Name>` | Unregister a source. |
-| `cast use` | Interactive menu to select and install skills. |
-| `cast use <Source>/<Skill>` | Install a specific skill directly (Non-interactive). |
-| `cast use ... --claude` | Install only to `.claude/skills` (must exist). |
-| `cast list` | Show all currently installed skills in this project. |
-| `cast remove <skill>` | Remove an installed skill. |
-| `cast config lang <en\|ko>` | Set language preference (English/Korean). |
-| `cast source sync` | Update sources and refresh installed skills. |
+|---------|-------------|
+| `cast init` | Initialize global configuration |
+| `cast use` | Select and install skills (interactive) |
+| `cast use <source>/<skill>` | Install a specific skill directly |
+| `cast list` | Show installed skills |
+| `cast remove <skill>` | Remove a skill |
 
-## Directory Structure
+### Source Management
 
-Agent Skill Cast keeps your project clean:
+| Command | Description |
+|---------|-------------|
+| `cast source add <URL/Path>` | Register a source |
+| `cast source list` | Show registered sources |
+| `cast source remove <name>` | Unregister a source |
+| `cast source sync` | Update sources and refresh skills |
 
-- `~/.asc_sources/`: Where sources are cloned/linked (managed globally).
-- `.claude/skills/`: Symlinks to the actual skill folders.
-- `.gemini/skills/`: Symlinks for Gemini.
-- `.codex/skills/`: Symlinks for Codex.
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--claude` | Install only to `.claude/skills` |
+| `--gemini` | Install only to `.gemini/skills` |
+| `--codex` | Install only to `.codex/skills` |
+
+### Configuration
+
+```bash
+cast config lang ko   # 한국어
+cast config lang en   # English
+```
+
+---
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Skill Source Repository (GitHub / Local)               │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  ~/.asc_sources/                                        │
+│  └── shared-skills/     ← git clone or symlink          │
+│      ├── react-patterns/                                │
+│      ├── testing-guide/                                 │
+│      └── mobile-helper/                                 │
+└─────────────────────────────────────────────────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+     Project A       Project B       Project C
+     .claude/        .claude/        .claude/
+     skills/         skills/         skills/
+       ↓               ↓               ↓
+    [symlink]       [symlink]       [symlink]
+```
+
+- **Zero Copy**: Symlinks save disk space
+- **Instant Reflect**: Source updates apply to all projects automatically
+- **Independent Selection**: Each project can have different skill combinations
+
+---
+
+## Collaboration Scenarios
+
+<details>
+<summary><b>Scenario 1: Sharing Skills Across Branches</b></summary>
+
+> **Situation**: You made a skill on the mobile branch and want to use it on main.
+
+```bash
+# Register skill repository (once)
+cast source add https://github.com/my-team/shared-skills
+
+# Use from any branch
+cast use shared-skills/mobile-helper
+
+# Sync when updated
+cast source sync
+```
+
+</details>
+
+<details>
+<summary><b>Scenario 2: Branch-Specific Skills</b></summary>
+
+> **Situation**: Mobile-only skills are only needed on the mobile branch.
+
+```bash
+# main branch
+cast use shared-skills/common-helper
+cast use shared-skills/api-guide
+
+# mobile branch (additional)
+cast use shared-skills/mobile-helper
+cast use shared-skills/responsive-design
+```
+
+Each branch maintains independent `.claude/skills/`!
+
+</details>
+
+<details>
+<summary><b>Scenario 3: Sharing Skills Across Repositories</b></summary>
+
+> **Situation**: Repo A and B use the same frontend tech, 90% skills are identical.
+
+```bash
+# Both Repo A and B:
+cast source add https://github.com/my-team/frontend-skills
+cast use frontend-skills/react-patterns
+cast use frontend-skills/testing-guide
+```
+
+Update the source once, `cast source sync` syncs all repos!
+
+</details>
+
+<details>
+<summary><b>Scenario 4: Instantly Share with Teammates</b></summary>
+
+> **Situation**: You want to quickly share a new skill with your team.
+
+```bash
+# 1. Push to skill repository
+cd ~/shared-skills
+mkdir new-skill && echo "..." > new-skill/SKILL.md
+git add . && git commit -m "feat: add new skill" && git push
+
+# 2. Tell teammates: "Run cast source sync!"
+
+# 3. Teammates
+cast source sync
+cast use shared-skills/new-skill
+```
+
+</details>
+
+<details>
+<summary><b>Scenario 5: Local Development & Testing</b></summary>
+
+> **Situation**: You want to test a skill locally before pushing to the shared repo.
+
+```bash
+# Register local folder as source
+cast source add ~/my-local-skills
+
+# Develop & test
+cast use my-local-skills/experimental-skill
+
+# After testing, move to shared repository
+mv ~/my-local-skills/experimental-skill ~/shared-skills/
+cd ~/shared-skills && git add . && git commit -m "feat: add skill" && git push
+```
+
+</details>
+
+---
 
 ## License
 
