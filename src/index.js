@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * 🧙‍♂️ Agent Skill Cast v1.0.0
+ * 🧙‍♂️ Agent Skill Cast v0.1.0
  * "AI 에이전트 스킬을 시전(Cast)하세요."
  * 
  * 기능: 소스 기반 스킬 관리, 선택적 동기화 (Selective Sync)
