@@ -3,10 +3,10 @@
   "version": "2.0.0",
   "description": "Agent Skill Cast - Selective Skill Sync & Source Management",
   "bin": {
-    "cast": "./index.js"
+    "cast": "./src/index.js"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/index.js"
   },
   "keywords": [
     "agent",
