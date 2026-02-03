@@ -144,6 +144,22 @@ cast config lang en   # English
 
 ---
 
+## Skill Structure
+
+To identify a folder as a skill, **it must contain a `SKILL.md` file.**
+Agent Skill Cast searches for skills in the following locations within a source repository:
+
+1. **Root Directory**: Any folder containing `SKILL.md`.
+   - `my-skill/SKILL.md` → Identified as `my-skill`
+2. **Agent Specific Directories**:
+   - `.claude/skills/my-skill/SKILL.md`
+   - `.gemini/skills/my-skill/SKILL.md`
+   - `.codex/skills/my-skill/SKILL.md`
+
+> **Note**: Folders without `SKILL.md` are ignored.
+
+---
+
 ## Collaboration Scenarios
 
 <details>

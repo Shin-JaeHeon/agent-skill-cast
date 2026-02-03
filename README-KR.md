@@ -144,6 +144,22 @@ cast config lang en   # English
 
 ---
 
+## 스킬 구조 (Skill Structure)
+
+폴더가 스킬로 식별되려면 **내부에 반드시 `SKILL.md` 파일이 있어야 합니다.**
+Agent Skill Cast는 소스 저장소 내 다음 위치에서 스킬을 탐색합니다.
+
+1. **루트 디렉토리**: `SKILL.md`를 포함하는 모든 폴더.
+   - `my-skill/SKILL.md` → `my-skill`로 식별
+2. **에이전트 전용 디렉토리**:
+   - `.claude/skills/my-skill/SKILL.md`
+   - `.gemini/skills/my-skill/SKILL.md`
+   - `.codex/skills/my-skill/SKILL.md`
+
+> **참고**: `SKILL.md`가 없는 폴더는 무시됩니다.
+
+---
+
 ## 협업 시나리오
 
 <details>
