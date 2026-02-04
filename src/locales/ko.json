@@ -71,5 +71,6 @@
     "info_local_source": " [local]",
     "usage_config": "   cast config lang <en|ko>     - 언어 설정 변경",
     "success_config_set": "설정이 업데이트되었습니다: {key} = {value}",
-    "error_config_invalid": "유효하지 않은 설정 값입니다."
+    "error_config_invalid": "유효하지 않은 설정 값입니다.",
+    "error_cannot_remove_local_source": "로컬 파일이라 제거할 수 없습니다."
 }

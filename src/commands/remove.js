@@ -4,6 +4,8 @@ const { getActiveSkills, CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR 
 const fs = require('fs');
 const path = require('path');
 
+const { loadConfig } = require('../core/config');
+
 async function execute(args) {
     let skillName = args[0];
     const activeSkills = getActiveSkills();
@@ -26,7 +28,32 @@ async function execute(args) {
     });
 
     if (targets.length === 0) {
-        return log("❌ 스킬을 찾을 수 없습니다.", styles.red);
+        // Check if it's a local directory (not a symlink) in any agent folder
+        const { CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } = require('../core/skills');
+        const agentDirs = [CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR];
+
+        let isLocalDir = false;
+        for (const dir of agentDirs) {
+            const potentialPath = path.join(dir, skillName);
+            if (fs.existsSync(potentialPath)) {
+                try {
+                    const stats = fs.lstatSync(potentialPath);
+                    if (stats.isDirectory() && !stats.isSymbolicLink()) {
+                        isLocalDir = true;
+                        break;
+                    }
+                } catch (e) { }
+            }
+        }
+
+        if (isLocalDir) {
+            return log(t('error_cannot_remove_local_source'), styles.red); // Reusing the same key, though it says "local source file", close enough or I should update it?
+            // User asked for "로컬 파일이라 지워지지 않는다고 해". 
+            // The key error_cannot_remove_local_source = "Cannot remove local source file." / "로컬 파일이라 제거할 수 없습니다."
+            // This matches the requirement.
+        }
+
+        return log(t('error_skill_not_found', { key: skillName }), styles.red);
     }
 
     targets.forEach(targetItem => {

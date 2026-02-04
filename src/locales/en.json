@@ -71,5 +71,6 @@
     "info_local_source": " [local]",
     "usage_config": "   cast config lang <en|ko>     - Set Language",
     "success_config_set": "Configuration updated: {key} = {value}",
-    "error_config_invalid": "Invalid configuration value."
+    "error_config_invalid": "Invalid configuration value.",
+    "error_cannot_remove_local_source": "Cannot remove local source file."
 }
