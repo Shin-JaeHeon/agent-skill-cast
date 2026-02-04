@@ -129,60 +129,88 @@ function askQuestion(query) {
     }));
 }
 
-// 소스 내 스킬 검색 (2단계)
-// 1단계: .claude/skills 폴더 내 스킬 검색
-// 2단계: 소스 루트에서 skill-*/SKILL.md 패턴 검색
+// 소스 내 스킬 검색 (재귀 탐색)
+// 에이전트 폴더 내부 스킬과 전체 디렉토리 내 SKILL.md를 가진 폴더 검색
 function findSkills(sourceDir) {
     if (!fs.existsSync(sourceDir)) return [];
     const skills = [];
-    const addedSkills = new Set(); // 중복 방지
+    const addedPaths = new Set(); // 실제 경로 기반 중복 방지
+
+    // 소스 디렉토리가 이미 에이전트 스킬 폴더 내부인지 확인
+    const normalizedSourceDir = sourceDir.replace(/\\/g, '/');
+    const isInsideAgentFolder = /(\/|^)\.(claude|gemini|codex)(\/|$)/.test(normalizedSourceDir);
 
     // 1단계: 에이전트 전용 폴더 검색 (.claude, .gemini, .codex)
-    const agentFolders = [
-        { dir: '.claude/skills', label: 'claude' },
-        { dir: '.gemini/skills', label: 'gemini' },
-        { dir: '.codex/skills', label: 'codex' }
-    ];
+    // 소스가 이미 에이전트 폴더 내부면 스킵
+    if (!isInsideAgentFolder) {
+        const agentFolders = [
+            { dir: '.claude/skills', label: 'claude' },
+            { dir: '.gemini/skills', label: 'gemini' },
+            { dir: '.codex/skills', label: 'codex' }
+        ];
 
-    agentFolders.forEach(folder => {
-        const fullPath = path.join(sourceDir, folder.dir);
-        if (fs.existsSync(fullPath)) {
-            const items = fs.readdirSync(fullPath);
-            items.forEach(item => {
-                if (item.startsWith('.') || item === 'node_modules') return;
+        agentFolders.forEach(folder => {
+            const fullPath = path.join(sourceDir, folder.dir);
+            if (fs.existsSync(fullPath)) {
+                const items = fs.readdirSync(fullPath);
+                items.forEach(item => {
+                    if (item.startsWith('.') || item === 'node_modules') return;
 
-                const itemPath = path.join(fullPath, item);
-                try {
-                    const stat = fs.statSync(itemPath);
-                    if (stat.isDirectory()) {
-                        const skillMdPath = path.join(itemPath, 'SKILL.md');
-                        if (fs.existsSync(skillMdPath)) {
-                            skills.push({ name: item, path: itemPath, location: folder.label });
-                            addedSkills.add(item);
+                    const itemPath = path.join(fullPath, item);
+                    try {
+                        const stat = fs.statSync(itemPath);
+                        if (stat.isDirectory()) {
+                            const skillMdPath = path.join(itemPath, 'SKILL.md');
+                            if (fs.existsSync(skillMdPath)) {
+                                const realPath = fs.realpathSync(itemPath);
+                                if (!addedPaths.has(realPath)) {
+                                    skills.push({ name: item, path: itemPath, location: folder.label });
+                                    addedPaths.add(realPath);
+                                }
+                            }
+                        }
+                    } catch (e) { /* 무시 */ }
+                });
+            }
+        });
+    }
+
+    // 2단계: 재귀적으로 SKILL.md가 포함된 폴더 검색
+    function scanDirectory(dir, relativePath = '') {
+        let items;
+        try {
+            items = fs.readdirSync(dir);
+        } catch (e) { return; }
+
+        items.forEach(item => {
+            // 에이전트 폴더는 1단계에서 처리했으므로 스킵
+            if (item.startsWith('.') || item === 'node_modules') return;
+
+            const itemPath = path.join(dir, item);
+            const itemRelativePath = relativePath ? `${relativePath}/${item}` : item;
+
+            try {
+                const stat = fs.statSync(itemPath);
+                if (stat.isDirectory()) {
+                    const skillMdPath = path.join(itemPath, 'SKILL.md');
+                    if (fs.existsSync(skillMdPath)) {
+                        const realPath = fs.realpathSync(itemPath);
+                        if (!addedPaths.has(realPath)) {
+                            // 최종 폴더명만 이름으로 사용 (예: mobile/type-guide -> type-guide)
+                            // location은 상위 경로 표시 (루트면 '/', 중첩이면 '/mobile')
+                            const location = relativePath ? `/${relativePath}` : '/';
+                            skills.push({ name: item, path: itemPath, location });
+                            addedPaths.add(realPath);
                         }
                     }
-                } catch (e) { /* 무시 */ }
-            });
-        }
-    });
-
-    // 2단계: 소스 루트에서 SKILL.md가 포함된 폴더 검색
-    const rootItems = fs.readdirSync(sourceDir);
-    rootItems.forEach(item => {
-        if (item.startsWith('.') || item === 'node_modules') return;
-
-        const itemPath = path.join(sourceDir, item);
-        try {
-            const stat = fs.statSync(itemPath);
-            if (stat.isDirectory()) {
-                const skillMdPath = path.join(itemPath, 'SKILL.md');
-                if (fs.existsSync(skillMdPath) && !addedSkills.has(item)) {
-                    skills.push({ name: item, path: itemPath, location: 'root' });
-                    addedSkills.add(item);
+                    // 재귀적으로 하위 디렉토리 탐색
+                    scanDirectory(itemPath, itemRelativePath);
                 }
-            }
-        } catch (e) { /* 무시 */ }
-    });
+            } catch (e) { /* 무시 */ }
+        });
+    }
+
+    scanDirectory(sourceDir);
 
     return skills;
 }
