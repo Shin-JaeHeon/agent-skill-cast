@@ -21,26 +21,24 @@ async function execute(args) {
         skillName = selected?.key;
     }
 
-    const targetIdx = activeSkills.findIndex(item => {
+    const targets = activeSkills.filter(item => {
         return item.key === skillName || item.name.toLowerCase() === skillName.toLowerCase();
     });
 
-    if (targetIdx === -1) {
+    if (targets.length === 0) {
         return log("❌ 스킬을 찾을 수 없습니다.", styles.red);
     }
 
-    const targetItem = activeSkills[targetIdx];
-    const targetKey = targetItem.key;
+    targets.forEach(targetItem => {
+        const agentDir = targetItem.agent === 'claude' ? CLAUDE_SKILLS_DIR :
+            targetItem.agent === 'gemini' ? GEMINI_SKILLS_DIR : CODEX_SKILLS_DIR;
 
-    // 심볼릭 링크/폴더 제거
-    const agentDir = targetItem.agent === 'claude' ? CLAUDE_SKILLS_DIR :
-        targetItem.agent === 'gemini' ? GEMINI_SKILLS_DIR : CODEX_SKILLS_DIR;
-    const destPath = path.join(agentDir, targetItem.name);
-    if (fs.existsSync(destPath)) {
-        fs.rmSync(destPath, { recursive: true, force: true });
-    }
-
-    log(t('success_skill_removed', { name: path.basename(targetKey) }), styles.green);
+        const destPath = path.join(agentDir, targetItem.name);
+        if (fs.existsSync(destPath)) {
+            fs.rmSync(destPath, { recursive: true, force: true });
+            log(t('success_skill_removed', { name: `${targetItem.name} (.${targetItem.agent})` }), styles.green);
+        }
+    });
 }
 
 module.exports = { execute };
