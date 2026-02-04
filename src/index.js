@@ -1,11 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * 🧙‍♂️ Agent Skill Cast v1.1.0
- * "AI 에이전트 스킬을 시전(Cast)하세요."
- * Refactored Architecture
- */
-
 const { initI18n, t } = require('./core/i18n');
 const { loadConfig } = require('./core/config');
 const { styles } = require('./core/utils');
