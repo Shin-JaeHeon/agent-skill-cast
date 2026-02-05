@@ -1,5 +1,5 @@
 {
-    "header_title": "Agent Skill Cast v0.1.3",
+    "header_title": "Agent Skill Cast v1.0.0",
     "init_msg": "Agent Skill Cast: 에이전트 스킬 동기화 초기화\n",
     "config_created": "설정 파일 생성됨: {path}",
     "config_exists": "기존 설정 파일 확인됨: {path}",
