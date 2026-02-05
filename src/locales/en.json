@@ -80,5 +80,11 @@
     "source_menu_sync": "Sync Sources (Update)",
     "source_menu_exit": "Exit",
     "prompt_choice": "Choice (Number): ",
-    "press_enter_to_continue": "Press Enter to continue..."
+    "press_enter_to_continue": "Press Enter to continue...",
+    "config_menu_header": "\nConfiguration Menu",
+    "config_menu_lang": "Change Language",
+    "config_menu_view": "View Current Config",
+    "config_menu_exit": "Exit",
+    "prompt_lang_select": "\nSelect Language (1: English, 2: Korean): ",
+    "info_current_config": "\nCurrent Configuration:"
 }

@@ -80,5 +80,11 @@
     "source_menu_sync": "소스 동기화 (업데이트)",
     "source_menu_exit": "종료",
     "prompt_choice": "선택 (번호): ",
-    "press_enter_to_continue": "계속하려면 Enter를 누르세요..."
+    "press_enter_to_continue": "계속하려면 Enter를 누르세요...",
+    "config_menu_header": "\n설정 관리 메뉴",
+    "config_menu_lang": "언어 설정 변경 (Language)",
+    "config_menu_view": "현재 설정 보기",
+    "config_menu_exit": "종료",
+    "prompt_lang_select": "\n언어를 선택하세요 (1: English, 2: 한국어): ",
+    "info_current_config": "\n현재 설정:"
 }

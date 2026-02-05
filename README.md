@@ -108,8 +108,11 @@ cast source sync
 ### Configuration
 
 ```bash
+```bash
+cast config           # Configuration Menu (Interactive)
 cast config lang ko   # 한국어
 cast config lang en   # English
+```
 ```
 
 ---
