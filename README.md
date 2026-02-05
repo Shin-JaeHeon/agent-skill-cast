@@ -108,11 +108,9 @@ cast source sync
 ### Configuration
 
 ```bash
-```bash
 cast config           # Configuration Menu (Interactive)
 cast config lang ko   # 한국어
 cast config lang en   # English
-```
 ```
 
 ---
@@ -185,26 +183,7 @@ cast source sync
 </details>
 
 <details>
-<summary><b>Scenario 2: Branch-Specific Skills</b></summary>
-
-> **Situation**: Mobile-only skills are only needed on the mobile branch.
-
-```bash
-# main branch
-cast use shared-skills/common-helper
-cast use shared-skills/api-guide
-
-# mobile branch (additional)
-cast use shared-skills/mobile-helper
-cast use shared-skills/responsive-design
-```
-
-Each branch maintains independent `.claude/skills/`!
-
-</details>
-
-<details>
-<summary><b>Scenario 3: Sharing Skills Across Repositories</b></summary>
+<summary><b>Scenario 2: Sharing Skills Across Repositories</b></summary>
 
 > **Situation**: Repo A and B use the same frontend tech, 90% skills are identical.
 
@@ -220,7 +199,7 @@ Update the source once, `cast source sync` syncs all repos!
 </details>
 
 <details>
-<summary><b>Scenario 4: Instantly Share with Teammates</b></summary>
+<summary><b>Scenario 3: Instantly Share with Teammates</b></summary>
 
 > **Situation**: You want to quickly share a new skill with your team.
 
@@ -235,25 +214,6 @@ git add . && git commit -m "feat: add new skill" && git push
 # 3. Teammates
 cast source sync
 cast use shared-skills/new-skill
-```
-
-</details>
-
-<details>
-<summary><b>Scenario 5: Local Development & Testing</b></summary>
-
-> **Situation**: You want to test a skill locally before pushing to the shared repo.
-
-```bash
-# Register local folder as source
-cast source add ~/my-local-skills
-
-# Develop & test
-cast use my-local-skills/experimental-skill
-
-# After testing, move to shared repository
-mv ~/my-local-skills/experimental-skill ~/shared-skills/
-cd ~/shared-skills && git add . && git commit -m "feat: add skill" && git push
 ```
 
 </details>

@@ -108,11 +108,9 @@ cast source sync
 ### 설정
 
 ```bash
-```bash
 cast config           # 설정 관리 메뉴 (대화형)
 cast config lang ko   # 한국어
 cast config lang en   # English
-```
 ```
 
 ---
@@ -185,26 +183,7 @@ cast source sync
 </details>
 
 <details>
-<summary><b>시나리오 2: 브랜치별 맞춤 스킬</b></summary>
-
-> **상황**: 모바일 전용 스킬은 mobile 브랜치에서만 필요하다.
-
-```bash
-# main 브랜치
-cast use shared-skills/common-helper
-cast use shared-skills/api-guide
-
-# mobile 브랜치 (추가)
-cast use shared-skills/mobile-helper
-cast use shared-skills/responsive-design
-```
-
-각 브랜치마다 독립적인 `.claude/skills/` 관리!
-
-</details>
-
-<details>
-<summary><b>시나리오 3: 다른 레포 간 스킬 공유</b></summary>
+<summary><b>시나리오 2: 다른 레포 간 스킬 공유</b></summary>
 
 > **상황**: A레포와 B레포가 같은 프론트엔드 기술, 스킬 90% 동일.
 
@@ -220,7 +199,7 @@ cast use frontend-skills/testing-guide
 </details>
 
 <details>
-<summary><b>시나리오 4: 팀원과 즉시 공유</b></summary>
+<summary><b>시나리오 3: 팀원과 즉시 공유</b></summary>
 
 > **상황**: 새로 만든 스킬을 팀원들에게 빠르게 전파하고 싶다.
 
@@ -238,26 +217,6 @@ cast use shared-skills/new-skill
 ```
 
 </details>
-
-<details>
-<summary><b>시나리오 5: 로컬 개발 & 테스트</b></summary>
-
-> **상황**: 공용 저장소에 올리기 전에 로컬에서 먼저 테스트하고 싶다.
-
-```bash
-# 로컬 폴더를 소스로 등록
-cast source add ~/my-local-skills
-
-# 개발 & 테스트
-cast use my-local-skills/experimental-skill
-
-# 검증 완료 후 공용 저장소로 이동
-mv ~/my-local-skills/experimental-skill ~/shared-skills/
-cd ~/shared-skills && git add . && git commit -m "feat: add skill" && git push
-```
-
-</details>
-
 ---
 
 ## 라이선스
