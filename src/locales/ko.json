@@ -72,5 +72,13 @@
     "usage_config": "   cast config lang <en|ko>     - 언어 설정 변경",
     "success_config_set": "설정이 업데이트되었습니다: {key} = {value}",
     "error_config_invalid": "유효하지 않은 설정 값입니다.",
-    "error_cannot_remove_local_source": "로컬 파일이라 제거할 수 없습니다."
+    "error_cannot_remove_local_source": "로컬 파일이라 제거할 수 없습니다.",
+    "source_menu_header": "\n소스 관리 메뉴",
+    "source_menu_list": "등록된 소스 목록 조회",
+    "source_menu_add": "새로운 소스 추가",
+    "source_menu_remove": "소스 제거",
+    "source_menu_sync": "소스 동기화 (업데이트)",
+    "source_menu_exit": "종료",
+    "prompt_choice": "선택 (번호): ",
+    "press_enter_to_continue": "계속하려면 Enter를 누르세요..."
 }

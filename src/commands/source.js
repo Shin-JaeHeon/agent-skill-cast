@@ -144,6 +144,48 @@ async function syncSources(config) {
     log(tFunc('success_sync_done', { count: linkCount }), styles.green);
 }
 
+async function interactiveSourceMenu(config) {
+    let running = true;
+    while (running) {
+        console.log('');
+        log(tFunc('source_menu_header'), styles.bright);
+        console.log(`1. ${tFunc('source_menu_list')}`);
+        console.log(`2. ${tFunc('source_menu_add')}`);
+        console.log(`3. ${tFunc('source_menu_remove')}`);
+        console.log(`4. ${tFunc('source_menu_sync')}`);
+        console.log(`5. ${tFunc('source_menu_exit')}`);
+        console.log('');
+
+        const choice = await askQuestion(tFunc('prompt_choice'));
+
+        switch (choice.trim()) {
+            case '1':
+                await listSources(config);
+                break;
+            case '2':
+                await addSource([], config);
+                break;
+            case '3':
+                await removeSource([], config);
+                break;
+            case '4':
+                await syncSources(config);
+                break;
+            case '5':
+            case 'exit':
+            case 'q':
+                running = false;
+                break;
+            default:
+                log(tFunc('error_invalid_choice'), styles.red);
+        }
+
+        if (running) {
+            await askQuestion(tFunc('press_enter_to_continue'));
+        }
+    }
+}
+
 async function execute(subCommand, args, config) {
     if (subCommand === 'add') {
         await addSource(args, config);
@@ -153,10 +195,22 @@ async function execute(subCommand, args, config) {
         await syncSources(config);
     } else if (subCommand === 'list' || subCommand === 'ls') {
         await listSources(config);
+    } else if (!subCommand) {
+        // Show usage first
+        console.log(`\n${styles.bright}${tFunc('usage_source_header')}${styles.reset}
+${tFunc('usage_source_add')}
+${tFunc('usage_source_list')}
+${tFunc('usage_source_remove')}
+${tFunc('usage_source_sync')}`);
+
+        // Then interactive menu
+        await interactiveSourceMenu(config);
     } else {
         console.log(`\n${styles.bright}${tFunc('usage_source_header')}${styles.reset}
 ${tFunc('usage_source_add')}
-${tFunc('usage_source_list')}`);
+${tFunc('usage_source_list')}
+${tFunc('usage_source_remove')}
+${tFunc('usage_source_sync')}`);
     }
 }
 

@@ -72,5 +72,13 @@
     "usage_config": "   cast config lang <en|ko>     - Set Language",
     "success_config_set": "Configuration updated: {key} = {value}",
     "error_config_invalid": "Invalid configuration value.",
-    "error_cannot_remove_local_source": "Cannot remove local source file."
+    "error_cannot_remove_local_source": "Cannot remove local source file.",
+    "source_menu_header": "\nSource Management Menu",
+    "source_menu_list": "List Registered Sources",
+    "source_menu_add": "Add New Source",
+    "source_menu_remove": "Remove Source",
+    "source_menu_sync": "Sync Sources (Update)",
+    "source_menu_exit": "Exit",
+    "prompt_choice": "Choice (Number): ",
+    "press_enter_to_continue": "Press Enter to continue..."
 }

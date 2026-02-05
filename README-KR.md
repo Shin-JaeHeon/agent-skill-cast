@@ -91,6 +91,7 @@ cast source sync
 
 | 명령어 | 설명 |
 |--------|------|
+| `cast source` | 소스 관리 메뉴 (대화형) |
 | `cast source add <URL/경로>` | 소스 등록 |
 | `cast source list` | 등록된 소스 목록 |
 | `cast source remove <이름>` | 소스 등록 해제 |

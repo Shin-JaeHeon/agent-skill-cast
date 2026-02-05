@@ -91,6 +91,7 @@ cast source sync
 
 | Command | Description |
 |---------|-------------|
+| `cast source` | Source Management Menu (Interactive) |
 | `cast source add <URL/Path>` | Register a source |
 | `cast source list` | Show registered sources |
 | `cast source remove <name>` | Unregister a source |
