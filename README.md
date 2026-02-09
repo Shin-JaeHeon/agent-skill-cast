@@ -2,9 +2,9 @@
 
 **Cast your AI agent skills across your team.**
 
+**English** | [한국어](./README-KR.md) | 
 [![npm version](https://img.shields.io/npm/v/agent-skill-cast.svg)](https://www.npmjs.com/package/agent-skill-cast)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 ---
 
 ## Why?

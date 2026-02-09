@@ -1,7 +1,10 @@
+[English](./README.md) | **한국어**
+
 # Agent Skill Cast
 
 **AI 에이전트 스킬을 팀원들에게 시전(Cast)하세요.**
 
+[English](./README.md) | **한국어** |
 [![npm version](https://img.shields.io/npm/v/agent-skill-cast.svg)](https://www.npmjs.com/package/agent-skill-cast)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
