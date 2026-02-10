@@ -4,6 +4,19 @@ const os = require('os');
 const { execSync } = require('child_process');
 const readline = require('readline');
 
+// --- CI Mode ---
+let _ciMode = false;
+let _jsonMode = false;
+
+function setCIMode(ci, json = false) {
+    _ciMode = ci;
+    _jsonMode = json;
+    if (ci) disableColors();
+}
+
+function getCIMode() { return _ciMode; }
+function getJSONMode() { return _jsonMode; }
+
 // --- 스타일 유틸리티 ---
 const styles = {
     reset: "\x1b[0m",
@@ -15,6 +28,12 @@ const styles = {
     magenta: "\x1b[35m",
     blue: "\x1b[34m",
 };
+
+function disableColors() {
+    for (const key of Object.keys(styles)) {
+        styles[key] = '';
+    }
+}
 
 function log(msg, style = styles.reset) {
     console.log(`${style}${msg}${styles.reset}`);
@@ -45,6 +64,10 @@ function resolveHome(filepath) {
 }
 
 function askQuestion(query) {
+    if (_ciMode) {
+        console.error(`[CI Error] Interactive prompt not available in CI mode: ${query.trim()}`);
+        process.exit(2);
+    }
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -55,6 +78,21 @@ function askQuestion(query) {
     }));
 }
 
+// --- CI Output Helpers ---
+function ciOutput(data) {
+    if (_jsonMode) {
+        console.log(JSON.stringify({ ok: true, data }, null, 2));
+    }
+}
+
+function ciError(error, message) {
+    if (_jsonMode) {
+        console.log(JSON.stringify({ ok: false, error, message }, null, 2));
+    } else if (_ciMode) {
+        console.error(`[Error] ${message}`);
+    }
+}
+
 module.exports = {
     styles,
     log,
@@ -62,5 +100,10 @@ module.exports = {
     ensureDir,
     resolveHome,
     askQuestion,
-    HOME_DIR
+    HOME_DIR,
+    setCIMode,
+    getCIMode,
+    getJSONMode,
+    ciOutput,
+    ciError
 };

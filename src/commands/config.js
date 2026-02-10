@@ -1,4 +1,4 @@
-const { log, styles, askQuestion } = require('../core/utils');
+const { log, styles, askQuestion, getCIMode, ciError } = require('../core/utils');
 const { t } = require('../core/i18n');
 const { saveConfig } = require('../core/config');
 const { initI18n } = require('../core/i18n'); // Needed to reload language
@@ -59,6 +59,10 @@ async function execute(args, config) {
     const value = args[1];
 
     if (!key) {
+        if (getCIMode()) {
+            ciError('missing_subcommand', t('ci_error_config_requires_subcommand'));
+            process.exit(2);
+        }
         // Show usage first
         console.log(`\n${styles.bright}${t('usage_config')}${styles.reset}`);
         // Then interactive menu

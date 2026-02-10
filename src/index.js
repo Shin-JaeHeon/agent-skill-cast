@@ -2,7 +2,7 @@
 
 const { initI18n, t } = require('./core/i18n');
 const { loadConfig } = require('./core/config');
-const { styles } = require('./core/utils');
+const { styles, setCIMode } = require('./core/utils');
 
 // Command Handlers
 const cmdInit = require('./commands/init');
@@ -16,10 +16,21 @@ async function main() {
     const config = loadConfig();
     initI18n(config.lang);
 
-    const args = process.argv.slice(2);
+    const rawArgs = process.argv.slice(2);
+
+    // CI mode detection
+    const isCIMode = rawArgs.includes('--ci')
+        || !process.stdin.isTTY;
+    const isJSONMode = rawArgs.includes('--json');
+
+    // Strip meta flags from args
+    const args = rawArgs.filter(a => a !== '--ci' && a !== '--json');
+
+    setCIMode(isCIMode, isJSONMode);
+
     const command = args[0];
     const subCommand = args[1];
-    const param = args[2] || args[1]; // legacy or new structure support logic might be needed inside commands
+    const param = args[2] || args[1];
 
     // Dispatcher
     switch (command) {

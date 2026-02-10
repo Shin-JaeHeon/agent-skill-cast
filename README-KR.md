@@ -116,6 +116,28 @@ cast config lang ko   # 한국어
 cast config lang en   # English
 ```
 
+### CI 모드 (AI 에이전트 / 자동화용)
+
+Claude Code, Codex, CI/CD 파이프라인 등 비대화형 환경에서는 `--ci` 플래그를 사용하세요.
+기계가 읽을 수 있는 출력을 위해 `--json`을 추가할 수 있습니다.
+
+```bash
+# CI 모드는 다음 경우에 자동 활성화됩니다:
+# - --ci 플래그 존재
+# - stdin이 TTY가 아님 (파이프 실행 등)
+
+cast source list --ci --json     # JSON 출력
+cast use my-skills/helper --ci   # 비대화형 설치
+cast list --ci --json            # JSON 스킬 목록
+```
+
+| 옵션 | 설명 |
+|--------|-------------|
+| `--ci` | 비대화형 모드 (프롬프트 없음, 컬러 없음, 에러 시 종료 코드 반환) |
+| `--json` | 구조화된 JSON 출력 반환 |
+
+> 전체 에이전트 인터페이스 사양은 [SKILL.md](./SKILL.md)를 참조하세요.
+
 ---
 
 ## 동작 원리

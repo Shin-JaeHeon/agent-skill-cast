@@ -1,4 +1,4 @@
-const { log, styles, askQuestion } = require('../core/utils');
+const { log, styles, askQuestion, getCIMode, ciError } = require('../core/utils');
 const { t } = require('../core/i18n');
 const { getActiveSkills, CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } = require('../core/skills');
 const fs = require('fs');
@@ -11,6 +11,10 @@ async function execute(args) {
     const activeSkills = getActiveSkills();
 
     if (!skillName) {
+        if (getCIMode()) {
+            ciError('missing_argument', t('ci_error_remove_requires_arg'));
+            process.exit(2);
+        }
         if (activeSkills.length === 0) {
             return log(t('error_no_skill_to_remove'), styles.red);
         }

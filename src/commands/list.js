@@ -1,4 +1,4 @@
-const { log, styles } = require('../core/utils');
+const { log, styles, getJSONMode, ciOutput } = require('../core/utils');
 const { t } = require('../core/i18n');
 const { CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } = require('../core/skills');
 const { SOURCES_DIR } = require('../core/config'); // Needed for path resolution
@@ -11,6 +11,37 @@ async function execute() {
         { name: 'Codex', dir: CODEX_SKILLS_DIR, color: styles.magenta },
         { name: 'Gemini', dir: GEMINI_SKILLS_DIR, color: styles.yellow }
     ];
+
+    // JSON mode: collect and output structured data
+    if (getJSONMode()) {
+        const result = [];
+        agentFolders.forEach(agent => {
+            if (fs.existsSync(agent.dir)) {
+                const items = fs.readdirSync(agent.dir);
+                items.forEach(item => {
+                    if (item.startsWith('.') || item === 'node_modules') return;
+                    try {
+                        const fullPath = path.join(agent.dir, item);
+                        if (!fs.statSync(fullPath).isDirectory()) return;
+                        const entry = { name: item, agent: agent.name.toLowerCase() };
+                        const lstat = fs.lstatSync(fullPath);
+                        if (lstat.isSymbolicLink()) {
+                            const targetPath = fs.readlinkSync(fullPath);
+                            entry.type = 'symlink';
+                            if (targetPath.startsWith(SOURCES_DIR)) {
+                                entry.source = path.relative(SOURCES_DIR, targetPath).split(path.sep)[0];
+                            }
+                        } else {
+                            entry.type = 'local';
+                        }
+                        result.push(entry);
+                    } catch (e) { /* ignore */ }
+                });
+            }
+        });
+        ciOutput({ skills: result });
+        return;
+    }
 
     log(t('header_project_skills'), styles.bright);
 
@@ -65,3 +96,4 @@ async function execute() {
 }
 
 module.exports = { execute };
+

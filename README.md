@@ -113,6 +113,28 @@ cast config lang ko   # 한국어
 cast config lang en   # English
 ```
 
+### CI Mode (for AI Agents / Automation)
+
+Use `--ci` flag for non-interactive execution (Claude Code, Codex, CI/CD pipelines).
+Add `--json` for machine-readable JSON output.
+
+```bash
+# CI mode is auto-activated when:
+# - --ci flag is present
+# - stdin is not a TTY
+
+cast source list --ci --json     # JSON output
+cast use my-skills/helper --ci   # Non-interactive install
+cast list --ci --json            # JSON skill list
+```
+
+| Option | Description |
+|--------|-------------|
+| `--ci` | Non-interactive mode (no prompts, no colors) |
+| `--json` | Structured JSON output |
+
+> See [SKILL.md](./SKILL.md) for the full agent interface specification.
+
 ---
 
 ## How It Works

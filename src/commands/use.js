@@ -1,4 +1,4 @@
-const { log, styles, askQuestion } = require('../core/utils');
+const { log, styles, askQuestion, getCIMode, getJSONMode, ciOutput, ciError } = require('../core/utils');
 const { t } = require('../core/i18n');
 const { SOURCES_DIR } = require('../core/config');
 const { findSkills, activateSkill } = require('../core/skills');
@@ -10,6 +10,10 @@ async function execute(args, config, options = {}) {
     const sourceNames = Object.keys(config.sources);
 
     if (sourceNames.length === 0) {
+        if (getCIMode()) {
+            ciError('no_sources', t('error_no_sources'));
+            process.exit(1);
+        }
         log(t('error_no_sources'), styles.red);
         return;
     }
@@ -20,6 +24,10 @@ async function execute(args, config, options = {}) {
         const parts = query.split('/');
         sourceName = parts[0];
         skillName = parts.slice(1).join('/');
+    } else if (getCIMode()) {
+        // CI mode requires explicit source/skill argument
+        ciError('missing_argument', t('ci_error_use_requires_arg'));
+        process.exit(2);
     } else {
         // Interactive
         log(t('header_source_list'), styles.bright);
@@ -69,3 +77,4 @@ async function execute(args, config, options = {}) {
 }
 
 module.exports = { execute };
+

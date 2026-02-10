@@ -1,4 +1,4 @@
-const { log, styles, askQuestion, t } = require('../core/utils');
+const { log, styles, askQuestion, getCIMode, getJSONMode, ciOutput, ciError } = require('../core/utils');
 // utils exports styles, log, etc. Wait, I should import t from i18n
 const { t: tFunc } = require('../core/i18n'); // Renaming to avoid conflict or just use t
 const { loadConfig, saveConfig, SOURCES_DIR } = require('../core/config');
@@ -12,6 +12,16 @@ const path = require('path');
 // Let's correct this.
 
 async function listSources(config) {
+    if (getJSONMode()) {
+        const sources = Object.entries(config.sources).map(([name, info]) => ({
+            name,
+            type: info.type,
+            url: info.type === 'git' ? info.url : undefined,
+            path: info.type === 'local' ? info.path : undefined
+        }));
+        ciOutput({ sources });
+        return;
+    }
     log(tFunc('header_registered_sources'), styles.bright);
     const sourceNames = Object.keys(config.sources);
     if (sourceNames.length === 0) {
@@ -45,6 +55,10 @@ async function addSource(args, config) {
 async function removeSource(args, config) {
     let sourceName = args[0];
     if (!sourceName) {
+        if (getCIMode()) {
+            ciError('missing_argument', tFunc('ci_error_source_remove_requires_arg'));
+            process.exit(2);
+        }
         const sourceNames = Object.keys(config.sources);
         if (sourceNames.length === 0) {
             return log(tFunc('error_no_sources'), styles.red);
@@ -109,15 +123,20 @@ async function syncSources(config) {
     // This logic handles pulling git repos
     log(tFunc('info_syncing'), styles.bright);
 
+    const syncResults = [];
     for (const [name, info] of Object.entries(config.sources)) {
         const sourceDir = path.join(SOURCES_DIR, name);
         if (info.type === 'git' && fs.existsSync(sourceDir)) {
             log(tFunc('info_updating', { name }), styles.cyan);
             try {
                 runCmd('git pull', sourceDir, true);
+                syncResults.push({ name, status: 'updated' });
             } catch (e) {
                 log(tFunc('warn_update_fail', { name }), styles.yellow);
+                syncResults.push({ name, status: 'failed' });
             }
+        } else if (info.type === 'local') {
+            syncResults.push({ name, status: 'local' });
         }
     }
 
@@ -141,7 +160,11 @@ async function syncSources(config) {
         linkOrCopy(sourcePath, destPath, true);
     }
 
-    log(tFunc('success_sync_done', { count: linkCount }), styles.green);
+    if (getJSONMode()) {
+        ciOutput({ sources: syncResults, skillCount: linkCount });
+    } else {
+        log(tFunc('success_sync_done', { count: linkCount }), styles.green);
+    }
 }
 
 async function interactiveSourceMenu(config) {
@@ -196,6 +219,10 @@ async function execute(subCommand, args, config) {
     } else if (subCommand === 'list' || subCommand === 'ls') {
         await listSources(config);
     } else if (!subCommand) {
+        if (getCIMode()) {
+            ciError('missing_subcommand', tFunc('ci_error_source_requires_subcommand'));
+            process.exit(2);
+        }
         // Show usage first
         console.log(`\n${styles.bright}${tFunc('usage_source_header')}${styles.reset}
 ${tFunc('usage_source_add')}
