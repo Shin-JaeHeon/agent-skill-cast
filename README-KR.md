@@ -136,7 +136,7 @@ cast list --ci --json            # JSON 스킬 목록
 | `--ci` | 비대화형 모드 (프롬프트 없음, 컬러 없음, 에러 시 종료 코드 반환) |
 | `--json` | 구조화된 JSON 출력 반환 |
 
-> 전체 에이전트 인터페이스 사양은 [SKILL.md](./SKILL.md)를 참조하세요.
+> 전체 에이전트 인터페이스 사양은 [SKILL.md](agent-skill-cast/SKILL.md)를 참조하세요.
 
 ---
 

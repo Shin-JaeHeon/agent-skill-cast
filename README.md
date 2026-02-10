@@ -133,7 +133,7 @@ cast list --ci --json            # JSON skill list
 | `--ci` | Non-interactive mode (no prompts, no colors) |
 | `--json` | Structured JSON output |
 
-> See [SKILL.md](./SKILL.md) for the full agent interface specification.
+> See [SKILL.md](agent-skill-cast/SKILL.md) for the full agent interface specification.
 
 ---
 
