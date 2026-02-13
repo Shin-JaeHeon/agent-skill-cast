@@ -63,6 +63,9 @@ cast source add ~/my-personal-skills
 ```bash
 cast use
 # 대화형 메뉴에서 원하는 스킬 번호 선택 (쉼표로 복수 선택 가능)
+
+# 또는 특정 소스의 모든 스킬을 한 번에 장착
+cast use my-skills --all
 ```
 
 ### Step 4. 확인
@@ -88,7 +91,9 @@ cast source sync
 | `cast init` | 전역 설정 초기화 |
 | `cast use` | 스킬 선택 및 장착 (대화형) |
 | `cast use <소스>/<스킬>` | 특정 스킬 바로 장착 |
+| `cast use <소스> --all` | 특정 소스의 모든 스킬 장착 |
 | `cast use <소스>/<스킬> --copy` | 심볼릭 링크 대신 독립 사본으로 장착 |
+| `cast use <소스> --all --copy` | 특정 소스의 모든 스킬을 독립 사본으로 장착 |
 | `cast list` | 장착된 스킬 목록 |
 | `cast remove <스킬>` | 심볼릭 링크로 장착된 스킬 제거 (`--copy` 독립 사본은 제거하지 않음) |
 
@@ -109,6 +114,7 @@ cast source sync
 | `--claude` | `.claude/skills`에만 장착 |
 | `--gemini` | `.gemini/skills`에만 장착 |
 | `--codex` | `.codex/skills`에만 장착 |
+| `--all` | 지정한 소스의 모든 스킬 장착 (`cast use <소스> --all`) |
 | `--copy` | 심볼릭 링크 대신 복사하여 장착 |
 
 ### 설정
@@ -131,6 +137,7 @@ Claude Code, Codex, CI/CD 파이프라인 등 비대화형 환경에서는 `--ci
 
 cast source list --ci --json     # JSON 출력
 cast use my-skills/helper --ci   # 비대화형 설치
+cast use my-skills --all --ci    # 특정 소스의 모든 스킬 비대화형 설치
 cast use my-skills/helper --copy --ci  # 비대화형 독립 사본 복사 설치
 cast list --ci --json            # JSON 스킬 목록
 ```

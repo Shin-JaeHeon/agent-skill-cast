@@ -60,6 +60,9 @@ cast source add ~/my-personal-skills
 ```bash
 cast use
 # Interactive menu - select skill numbers (comma-separated for multiple)
+
+# Or install every skill from a source at once
+cast use my-skills --all
 ```
 
 ### Step 4. Verify
@@ -85,7 +88,9 @@ cast source sync
 | `cast init` | Initialize global configuration |
 | `cast use` | Select and install skills (interactive) |
 | `cast use <source>/<skill>` | Install a specific skill directly |
+| `cast use <source> --all` | Install all skills from a source |
 | `cast use <source>/<skill> --copy` | Install as standalone copies (no symlink) |
+| `cast use <source> --all --copy` | Install all skills from a source as standalone copies |
 | `cast list` | Show installed skills |
 | `cast remove <skill>` | Remove installed symlink skills (standalone `--copy` installs are not removed) |
 
@@ -106,6 +111,7 @@ cast source sync
 | `--claude` | Install only to `.claude/skills` |
 | `--gemini` | Install only to `.gemini/skills` |
 | `--codex` | Install only to `.codex/skills` |
+| `--all` | Install all skills from the specified source (`cast use <source> --all`) |
 | `--copy` | Copy skills instead of creating symlinks |
 
 ### Configuration
@@ -128,6 +134,7 @@ Use `--ci` flag for non-interactive execution (Claude Code, Codex, CI/CD pipelin
 
 cast source list --ci --json     # JSON output
 cast use my-skills/helper --ci   # Non-interactive install
+cast use my-skills --all --ci    # Non-interactive install of all skills from one source
 cast use my-skills/helper --copy --ci  # Non-interactive standalone copy install
 cast list --ci --json            # JSON skill list
 ```

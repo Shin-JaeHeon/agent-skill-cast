@@ -20,6 +20,74 @@ async function execute(args, config, options = {}) {
 
     let sourceName, skillName;
 
+    if (options.all) {
+        // --all mode: install all skills from a source
+        sourceName = query;
+
+        if (!sourceName) {
+            if (getCIMode()) {
+                ciError('missing_argument', t('ci_error_use_all_requires_source'));
+                process.exit(2);
+            }
+            // Interactive: select source first
+            log(t('header_source_list'), styles.bright);
+            sourceNames.forEach((name, i) => {
+                const info = config.sources[name];
+                const typeIcon = info.type === 'git' ? '🌐' : '📁';
+                console.log(`  [${i + 1}] ${typeIcon} ${name}`);
+            });
+
+            const sourceIdx = await askQuestion(t('prompt_source_select'));
+            sourceName = sourceNames[parseInt(sourceIdx) - 1];
+
+            if (!sourceName) {
+                return log(t('error_invalid_choice'), styles.red);
+            }
+        }
+
+        if (!config.sources[sourceName]) {
+            return log(t('error_source_not_found'), styles.red);
+        }
+
+        const sourceDir = path.join(SOURCES_DIR, sourceName);
+        log(t('info_all_scanning', { sourceName }), styles.cyan);
+        const skills = findSkills(sourceDir);
+
+        if (skills.length === 0) {
+            return log(t('warn_no_skills', { sourceName }), styles.yellow);
+        }
+
+        log(t('info_all_found', { sourceName, count: skills.length }), styles.bright);
+        skills.forEach((skill, i) => {
+            const labelColor = skill.location === 'claude' ? styles.cyan :
+                skill.location === 'gemini' ? styles.yellow :
+                    skill.location === 'codex' ? styles.magenta : styles.bright;
+            const locationTag = labelColor + `[${skill.location}]`;
+            console.log(`  [${i + 1}] 📁 ${skill.name} ${locationTag}${styles.reset}`);
+        });
+
+        if (!getCIMode()) {
+            const confirm = await askQuestion(t('prompt_all_confirm', { count: skills.length }));
+            if (confirm.toLowerCase() !== 'y') {
+                return;
+            }
+        }
+
+        let installedCount = 0;
+        for (const skill of skills) {
+            await activateSkill(sourceName, skill.name, skill.path, options);
+            installedCount++;
+        }
+
+        const summary = { sourceName, installed: installedCount, total: skills.length };
+        if (getJSONMode()) {
+            ciOutput(summary);
+        } else {
+            log(t('success_all_done', summary), styles.green);
+        }
+        return;
+    }
+
     if (query && query.includes('/')) {
         const parts = query.split('/');
         sourceName = parts[0];
@@ -34,7 +102,6 @@ async function execute(args, config, options = {}) {
         sourceNames.forEach((name, i) => {
             const info = config.sources[name];
             const typeIcon = info.type === 'git' ? '🌐' : '📁';
-            // config sources usually have simple keys
             console.log(`  [${i + 1}] ${typeIcon} ${name}`);
         });
 

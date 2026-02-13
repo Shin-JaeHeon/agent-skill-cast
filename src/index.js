@@ -23,9 +23,10 @@ async function main() {
         || !process.stdin.isTTY;
     const isJSONMode = rawArgs.includes('--json');
     const isCopyMode = rawArgs.includes('--copy');
+    const isAllMode = rawArgs.includes('--all');
 
     // Strip meta flags from args
-    const args = rawArgs.filter(a => a !== '--ci' && a !== '--json' && a !== '--copy');
+    const args = rawArgs.filter(a => a !== '--ci' && a !== '--json' && a !== '--copy' && a !== '--all');
 
     setCIMode(isCIMode, isJSONMode);
 
@@ -62,7 +63,8 @@ async function main() {
                 claude: args.includes('--claude'),
                 gemini: args.includes('--gemini'),
                 codex: args.includes('--codex'),
-                copy: isCopyMode
+                copy: isCopyMode,
+                all: isAllMode
             };
             // If args[1] was a flag, then query might be null, which triggers interactive mode in handler
 
@@ -102,7 +104,7 @@ ${styles.bright}🧙‍♂️ Agent Skill Cast${styles.reset}
 ${t('usage_header')}
   cast init
   cast source add <url|path>
-  cast use [source/skill] [--copy]
+  cast use [source/skill] [--all] [--copy]
   cast sync
   cast list
   cast remove [skill]
