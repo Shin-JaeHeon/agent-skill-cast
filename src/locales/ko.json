@@ -29,6 +29,7 @@
     "error_skill_not_found": "스킬을 찾을 수 없습니다: {key}",
     "warn_skill_exists": "'{skillName}' 스킬이 이미 존재합니다.",
     "success_skill_installed": "'{skillName}' 스킬 장착 완료!",
+    "success_skill_copied": "'{skillName}' 스킬 복사 완료! (독립 사본)",
     "info_syncing": "\n스킬 동기화 중...",
     "info_updating": "   {name} 업데이트 중...",
     "warn_update_fail": "   {name} 업데이트 실패 (오프라인?)",

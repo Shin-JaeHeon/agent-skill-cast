@@ -27,8 +27,8 @@ Agent Skill Cast는 중앙 저장소에서 필요한 스킬만 골라 프로젝�
 | | |
 |---|---|
 | **선택적 동기화** | 전체 저장소가 아닌, 필요한 스킬만 골라서 사용 |
-| **멀티 에이전트** | Claude, Gemini, Codex 폴더 자동 관리 |
-| **즉시 업데이트** | `cast source sync` 한 줄로 최신 상태 유지 |
+| **멀티 에이전트** | 기존 Claude, Gemini, Codex 폴더에 장착 |
+| **즉시 업데이트** | `cast source sync`로 Git 소스 업데이트 시도 + 활성 심볼릭 링크 스킬 재연결 |
 | **로컬 & 원격** | Git 저장소 + 로컬 폴더 모두 지원 |
 
 ---
@@ -68,7 +68,8 @@ cast use
 ### Step 4. 확인
 ```bash
 cast list
-# .claude/skills/ 폴더에 심볼릭 링크 생성됨
+# 기본적으로 존재하는 에이전트 폴더(.claude/.gemini/.codex)에 심볼릭 링크 생성
+# --copy 사용 시 독립 로컬 사본으로 복사
 ```
 
 ### Step 5. 동기화 (소스 업데이트 시)
@@ -87,8 +88,9 @@ cast source sync
 | `cast init` | 전역 설정 초기화 |
 | `cast use` | 스킬 선택 및 장착 (대화형) |
 | `cast use <소스>/<스킬>` | 특정 스킬 바로 장착 |
+| `cast use <소스>/<스킬> --copy` | 심볼릭 링크 대신 독립 사본으로 장착 |
 | `cast list` | 장착된 스킬 목록 |
-| `cast remove <스킬>` | 스킬 제거 |
+| `cast remove <스킬>` | 심볼릭 링크로 장착된 스킬 제거 (`--copy` 독립 사본은 제거하지 않음) |
 
 ### 소스 관리
 
@@ -98,7 +100,7 @@ cast source sync
 | `cast source add <URL/경로>` | 소스 등록 |
 | `cast source list` | 등록된 소스 목록 |
 | `cast source remove <이름>` | 소스 등록 해제 |
-| `cast source sync` | 소스 업데이트 및 스킬 갱신 |
+| `cast source sync` | Git 소스 업데이트 및 활성 심볼릭 링크 스킬 갱신 |
 
 ### 옵션
 
@@ -107,6 +109,7 @@ cast source sync
 | `--claude` | `.claude/skills`에만 장착 |
 | `--gemini` | `.gemini/skills`에만 장착 |
 | `--codex` | `.codex/skills`에만 장착 |
+| `--copy` | 심볼릭 링크 대신 복사하여 장착 |
 
 ### 설정
 
@@ -119,7 +122,7 @@ cast config lang en   # English
 ### CI 모드 (AI 에이전트 / 자동화용)
 
 Claude Code, Codex, CI/CD 파이프라인 등 비대화형 환경에서는 `--ci` 플래그를 사용하세요.
-기계가 읽을 수 있는 출력을 위해 `--json`을 추가할 수 있습니다.
+`--json`은 CI JSON 출력을 구현한 명령에서 사용할 수 있습니다 (예: `cast source list`, `cast source sync`, `cast list`, CI 에러 응답).
 
 ```bash
 # CI 모드는 다음 경우에 자동 활성화됩니다:
@@ -128,13 +131,14 @@ Claude Code, Codex, CI/CD 파이프라인 등 비대화형 환경에서는 `--ci
 
 cast source list --ci --json     # JSON 출력
 cast use my-skills/helper --ci   # 비대화형 설치
+cast use my-skills/helper --copy --ci  # 비대화형 독립 사본 복사 설치
 cast list --ci --json            # JSON 스킬 목록
 ```
 
 | 옵션 | 설명 |
 |--------|-------------|
 | `--ci` | 비대화형 모드 (프롬프트 없음, 컬러 없음, 에러 시 종료 코드 반환) |
-| `--json` | 구조화된 JSON 출력 반환 |
+| `--json` | 구조화된 JSON 출력 반환 (지원 명령에서만 동작) |
 
 > 전체 에이전트 인터페이스 사양은 [SKILL.md](agent-skill-cast/SKILL.md)를 참조하세요.
 
@@ -165,9 +169,10 @@ cast list --ci --json            # JSON 스킬 목록
     [symlink]       [symlink]       [symlink]
 ```
 
-- **복사 없음**: 심볼릭 링크로 연결하여 디스크 공간 절약
-- **즉시 반영**: 소스 업데이트 시 모든 프로젝트에 자동 반영
+- **복사 없음(기본값)**: 심볼릭 링크로 연결하여 디스크 공간 절약
+- **즉시 반영**: 프로젝트에서 `cast source sync` 실행 시 소스 업데이트를 재연결하여 반영
 - **독립적 선택**: 프로젝트마다 다른 스킬 조합 가능
+- **독립 사본 모드**: `cast use <소스>/<스킬> --copy`로 로컬 복사본으로 장착 가능 (`cast remove`로는 제거되지 않음)
 
 ---
 

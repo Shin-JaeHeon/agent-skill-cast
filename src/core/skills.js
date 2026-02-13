@@ -203,8 +203,13 @@ async function activateSkill(sourceName, skillName, skillPath = null, options = 
             continue;
         }
 
-        linkOrCopy(sourcePath, destPath, true);
-        log(t('success_skill_installed', { skillName: `${skillName} -> .${agent}` }), styles.green);
+        if (options.copy) {
+            fs.cpSync(sourcePath, destPath, { recursive: true });
+            log(t('success_skill_copied', { skillName: `${skillName} -> .${agent}` }), styles.green);
+        } else {
+            linkOrCopy(sourcePath, destPath, true);
+            log(t('success_skill_installed', { skillName: `${skillName} -> .${agent}` }), styles.green);
+        }
         installedCount++;
     }
 

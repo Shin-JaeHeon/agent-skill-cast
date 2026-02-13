@@ -24,8 +24,8 @@ Agent Skill Cast lets you pick only the skills you need from a central repositor
 | | |
 |---|---|
 | **Selective Sync** | Pick only the skills you need, not the entire repository |
-| **Multi-Agent** | Auto-manages Claude, Gemini, Codex folders |
-| **Instant Updates** | `cast source sync` keeps everything up-to-date |
+| **Multi-Agent** | Installs to existing Claude, Gemini, Codex folders |
+| **Instant Updates** | `cast source sync` attempts git updates and re-links active symlink skills |
 | **Local & Remote** | Supports both Git repos and local folders |
 
 ---
@@ -65,7 +65,8 @@ cast use
 ### Step 4. Verify
 ```bash
 cast list
-# Symlinks created in .claude/skills/
+# By default, symlinks are created in existing agent folders (.claude/.gemini/.codex)
+# Use --copy for standalone local copies
 ```
 
 ### Step 5. Sync (when source is updated)
@@ -84,8 +85,9 @@ cast source sync
 | `cast init` | Initialize global configuration |
 | `cast use` | Select and install skills (interactive) |
 | `cast use <source>/<skill>` | Install a specific skill directly |
+| `cast use <source>/<skill> --copy` | Install as standalone copies (no symlink) |
 | `cast list` | Show installed skills |
-| `cast remove <skill>` | Remove a skill |
+| `cast remove <skill>` | Remove installed symlink skills (standalone `--copy` installs are not removed) |
 
 ### Source Management
 
@@ -95,7 +97,7 @@ cast source sync
 | `cast source add <URL/Path>` | Register a source |
 | `cast source list` | Show registered sources |
 | `cast source remove <name>` | Unregister a source |
-| `cast source sync` | Update sources and refresh skills |
+| `cast source sync` | Update git sources and refresh active symlink skills |
 
 ### Options
 
@@ -104,6 +106,7 @@ cast source sync
 | `--claude` | Install only to `.claude/skills` |
 | `--gemini` | Install only to `.gemini/skills` |
 | `--codex` | Install only to `.codex/skills` |
+| `--copy` | Copy skills instead of creating symlinks |
 
 ### Configuration
 
@@ -116,7 +119,7 @@ cast config lang en   # English
 ### CI Mode (for AI Agents / Automation)
 
 Use `--ci` flag for non-interactive execution (Claude Code, Codex, CI/CD pipelines).
-Add `--json` for machine-readable JSON output.
+`--json` is available on commands that implement CI JSON output (for example `cast source list`, `cast source sync`, `cast list`, and CI error responses).
 
 ```bash
 # CI mode is auto-activated when:
@@ -125,13 +128,14 @@ Add `--json` for machine-readable JSON output.
 
 cast source list --ci --json     # JSON output
 cast use my-skills/helper --ci   # Non-interactive install
+cast use my-skills/helper --copy --ci  # Non-interactive standalone copy install
 cast list --ci --json            # JSON skill list
 ```
 
 | Option | Description |
 |--------|-------------|
 | `--ci` | Non-interactive mode (no prompts, no colors) |
-| `--json` | Structured JSON output |
+| `--json` | Structured JSON output (supported commands only) |
 
 > See [SKILL.md](agent-skill-cast/SKILL.md) for the full agent interface specification.
 
@@ -162,9 +166,10 @@ cast list --ci --json            # JSON skill list
     [symlink]       [symlink]       [symlink]
 ```
 
-- **Zero Copy**: Symlinks save disk space
-- **Instant Reflect**: Source updates apply to all projects automatically
+- **Zero Copy (Default)**: Symlinks save disk space
+- **Instant Reflect**: Source updates can be re-linked in a project with `cast source sync`
 - **Independent Selection**: Each project can have different skill combinations
+- **Standalone Mode**: Use `cast use <source>/<skill> --copy` when you want independent local copies (`cast remove` does not remove these local copies)
 
 ---
 

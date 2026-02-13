@@ -15,7 +15,7 @@ CI mode is auto-activated when:
 - stdin is not a TTY (e.g. piped execution)
 
 ## Syntax
-`cast <command> [arguments] --ci [--json]`
+`cast <command> [arguments] --ci [--json] [--copy]`
 
 ## Commands
 ### Source Management
@@ -27,8 +27,8 @@ CI mode is auto-activated when:
 ### Skill Operations
 * `cast init --ci`: Initialize ASC in current project (creates config).
 * `cast list --ci [--json]`: Show skills currently installed in this project.
-* `cast use <source>/<skill> --ci`: Install a specific skill.
-    * Flags: `--claude`, `--gemini`, `--codex` (Target specific agent. Default: all).
+* `cast use <source>/<skill> --ci [--copy]`: Install a specific skill.
+    * Flags: `--claude`, `--gemini`, `--codex` (Target specific agent. Default: all), `--copy` (install standalone copies instead of symlinks).
 * `cast remove <skill> --ci`: Uninstall a skill.
 
 ### Configuration
@@ -57,4 +57,5 @@ When `--json` is used, output follows this structure:
 2. `cast source add https://github.com/my-team/frontend-skills --ci`
 3. `cast source sync --ci`
 4. `cast use frontend-skills/react-patterns --gemini --ci`
-5. `cast list --ci --json`
+5. `cast use frontend-skills/testing-guide --copy --ci`
+6. `cast list --ci --json`

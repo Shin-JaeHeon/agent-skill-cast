@@ -29,6 +29,7 @@
     "error_skill_not_found": "Skill not found: {key}",
     "warn_skill_exists": "Skill '{skillName}' already exists.",
     "success_skill_installed": "Skill '{skillName}' installed!",
+    "success_skill_copied": "Skill '{skillName}' copied (standalone)!",
     "info_syncing": "\nSyncing Skills...",
     "info_updating": "   Updating {name}...",
     "warn_update_fail": "   Failed to update {name} (Offline?)",
