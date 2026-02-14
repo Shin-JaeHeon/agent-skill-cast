@@ -1,6 +1,6 @@
 {
   "name": "agent-skill-cast",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Agent Skill Cast - Selective Skill Sync & Source Management",
   "bin": {
     "cast": "./src/index.js"
