@@ -6,6 +6,23 @@ import { SOURCES_DIR, saveConfig } from './config.js';
 import { t } from './i18n.js';
 import { runGit } from './process.js';
 
+function normalizeLocalSourceRoot(resolvedPath) {
+    const agentRoots = new Set(['.claude', '.gemini', '.codex']);
+    let current = resolvedPath;
+    while (true) {
+        const base = path.basename(current);
+        if (agentRoots.has(base)) {
+            return path.dirname(current);
+        }
+        const parent = path.dirname(current);
+        if (parent === current) {
+            break;
+        }
+        current = parent;
+    }
+    return resolvedPath;
+}
+
 export async function cloneSource(externalUrl, config) {
     const repoName = path.basename(externalUrl, '.git') || 'external-skills';
     const destDir = path.join(SOURCES_DIR, repoName);
@@ -52,7 +69,8 @@ export async function importSource(localPath, config) {
         return { ok: false, error: 'path_not_found', message: errorMessage };
     }
 
-    const sourceName = path.basename(resolvedPath);
+    const finalRoot = normalizeLocalSourceRoot(resolvedPath);
+    const sourceName = path.basename(finalRoot);
     const linkPath = path.join(SOURCES_DIR, sourceName);
 
     ensureDir(SOURCES_DIR);
@@ -63,15 +81,15 @@ export async function importSource(localPath, config) {
 
     try {
         const symlinkType = os.platform() === 'win32' ? 'junction' : 'dir';
-        fs.symlinkSync(resolvedPath, linkPath, symlinkType);
+        fs.symlinkSync(finalRoot, linkPath, symlinkType);
         log(t('success_local_source', { sourceName }), styles.green);
     } catch (e) {
         log(t('error_symlink', { message: e.message }), styles.red);
         return { ok: false, error: 'symlink_failed', message: t('error_symlink', { message: e.message }) };
     }
 
-    config.sources[sourceName] = { type: 'local', path: resolvedPath };
+    config.sources[sourceName] = { type: 'local', path: finalRoot };
     saveConfig(config);
     log(t('info_use_hint_simple', { sourceName }), styles.yellow);
-    return { ok: true, type: 'local', name: sourceName, input: resolvedPath };
+    return { ok: true, type: 'local', name: sourceName, input: finalRoot };
 }
