@@ -94,8 +94,10 @@
     "success_all_done": "\nDone! {installed} of {total} skill(s) installed from '{sourceName}'.",
     "ci_error_use_all_requires_source": "CI mode with --all requires source: cast use <source> --all --ci",
     "ci_error_use_requires_arg": "CI mode requires argument: cast use <source>/<skill> --ci",
+    "ci_error_source_add_requires_arg": "CI mode requires argument: cast source add <url|path> --ci",
     "ci_error_source_remove_requires_arg": "CI mode requires argument: cast source remove <name> --ci",
     "ci_error_source_requires_subcommand": "CI mode requires subcommand: cast source <add|list|remove|sync> --ci",
     "ci_error_remove_requires_arg": "CI mode requires argument: cast remove <skill> --ci",
-    "ci_error_config_requires_subcommand": "CI mode requires argument: cast config lang <en|ko> --ci"
+    "ci_error_config_requires_subcommand": "CI mode requires argument: cast config lang <en|ko> --ci",
+    "ci_error_requires_command": "A command is required. Example: cast list --ci"
 }

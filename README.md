@@ -36,7 +36,7 @@ Agent Skill Cast lets you pick only the skills you need from a central repositor
 npm install -g agent-skill-cast
 ```
 
-> Requires Node.js
+> Requires Node.js 20+
 
 ---
 
@@ -104,6 +104,8 @@ cast source sync
 | `cast source remove <name>` | Unregister a source |
 | `cast source sync` | Update git sources and refresh active symlink skills |
 
+> Legacy aliases (`cast sync`, `cast ls`, `cast rm`) are deprecated and will be removed in the next major version.
+
 ### Options
 
 | Option | Description |
@@ -125,7 +127,7 @@ cast config lang en   # English
 ### CI Mode (for AI Agents / Automation)
 
 Use `--ci` flag for non-interactive execution (Claude Code, Codex, CI/CD pipelines).
-`--json` is available on commands that implement CI JSON output (for example `cast source list`, `cast source sync`, `cast list`, and CI error responses).
+`--json` is supported across all commands and always returns `{ ok, data }` or `{ ok, error, message }`.
 
 ```bash
 # CI mode is auto-activated when:
@@ -142,7 +144,7 @@ cast list --ci --json            # JSON skill list
 | Option | Description |
 |--------|-------------|
 | `--ci` | Non-interactive mode (no prompts, no colors) |
-| `--json` | Structured JSON output (supported commands only) |
+| `--json` | Structured JSON output (all commands) |
 
 > See [SKILL.md](agent-skill-cast/SKILL.md) for the full agent interface specification.
 

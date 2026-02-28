@@ -94,8 +94,10 @@
     "success_all_done": "\n완료! '{sourceName}'에서 {total}개 중 {installed}개의 스킬이 설치되었습니다.",
     "ci_error_use_all_requires_source": "CI 모드에서 --all은 소스가 필요합니다: cast use <소스> --all --ci",
     "ci_error_use_requires_arg": "CI 모드에서는 인수가 필요합니다: cast use <소스>/<스킬> --ci",
+    "ci_error_source_add_requires_arg": "CI 모드에서는 인수가 필요합니다: cast source add <URL|경로> --ci",
     "ci_error_source_remove_requires_arg": "CI 모드에서는 인수가 필요합니다: cast source remove <이름> --ci",
     "ci_error_source_requires_subcommand": "CI 모드에서는 서브커맨드가 필요합니다: cast source <add|list|remove|sync> --ci",
     "ci_error_remove_requires_arg": "CI 모드에서는 인수가 필요합니다: cast remove <스킬> --ci",
-    "ci_error_config_requires_subcommand": "CI 모드에서는 인수가 필요합니다: cast config lang <en|ko> --ci"
+    "ci_error_config_requires_subcommand": "CI 모드에서는 인수가 필요합니다: cast config lang <en|ko> --ci",
+    "ci_error_requires_command": "명령어가 필요합니다. 예: cast list --ci"
 }

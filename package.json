@@ -2,11 +2,16 @@
   "name": "agent-skill-cast",
   "version": "1.2.0",
   "description": "Agent Skill Cast - Selective Skill Sync & Source Management",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "cast": "./src/index.js"
   },
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.mjs"
   },
   "keywords": [
     "agent",
@@ -17,5 +22,9 @@
     "claude"
   ],
   "author": "Shin-JaeHeon",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "execa": "^9.6.0"
+  }
 }

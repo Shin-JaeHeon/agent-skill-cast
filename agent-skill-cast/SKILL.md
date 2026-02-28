@@ -9,6 +9,7 @@ allowed-tools: Bash
 ## ⚠️ CI Mode (Required for Agents)
 All commands MUST use `--ci` flag. Interactive prompts are disabled in CI mode.
 Add `--json` for machine-readable output.
+`--json` is supported across all commands.
 
 CI mode is auto-activated when:
 - `--ci` flag is present

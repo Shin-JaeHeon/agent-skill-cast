@@ -1,35 +1,28 @@
-const { log, styles, askQuestion, getCIMode, getJSONMode, ciOutput, ciError } = require('../core/utils');
-const { t } = require('../core/i18n');
-const { SOURCES_DIR } = require('../core/config');
-const { findSkills, activateSkill } = require('../core/skills');
-const path = require('path');
+import path from 'path';
+import { log, styles, askQuestion, getCIMode, getJSONMode, ciOutput, ciError } from '../core/utils.js';
+import { t } from '../core/i18n.js';
+import { SOURCES_DIR } from '../core/config.js';
+import { findSkills, activateSkill } from '../core/skills.js';
 
-async function execute(args, config, options = {}) {
-    // args: [query]
+export async function execute(args, config, options = {}) {
     const query = args[0];
     const sourceNames = Object.keys(config.sources);
 
-    if (sourceNames.length === 0) {
-        if (getCIMode()) {
-            ciError('no_sources', t('error_no_sources'));
-            process.exit(1);
-        }
-        log(t('error_no_sources'), styles.red);
-        return;
-    }
-
-    let sourceName, skillName;
+    let sourceName;
+    let skillName;
 
     if (options.all) {
-        // --all mode: install all skills from a source
         sourceName = query;
 
         if (!sourceName) {
-            if (getCIMode()) {
+            if (getCIMode() || getJSONMode()) {
                 ciError('missing_argument', t('ci_error_use_all_requires_source'));
                 process.exit(2);
             }
-            // Interactive: select source first
+            if (sourceNames.length === 0) {
+                ciError('no_sources', t('error_no_sources'));
+                process.exit(1);
+            }
             log(t('header_source_list'), styles.bright);
             sourceNames.forEach((name, i) => {
                 const info = config.sources[name];
@@ -38,15 +31,21 @@ async function execute(args, config, options = {}) {
             });
 
             const sourceIdx = await askQuestion(t('prompt_source_select'));
-            sourceName = sourceNames[parseInt(sourceIdx) - 1];
-
+            sourceName = sourceNames[parseInt(sourceIdx, 10) - 1];
             if (!sourceName) {
-                return log(t('error_invalid_choice'), styles.red);
+                log(t('error_invalid_choice'), styles.red);
+                process.exit(1);
             }
         }
 
+        if (sourceNames.length === 0) {
+            ciError('no_sources', t('error_no_sources'));
+            process.exit(1);
+        }
+
         if (!config.sources[sourceName]) {
-            return log(t('error_source_not_found'), styles.red);
+            ciError('source_not_found', t('error_source_not_found'));
+            process.exit(1);
         }
 
         const sourceDir = path.join(SOURCES_DIR, sourceName);
@@ -54,19 +53,24 @@ async function execute(args, config, options = {}) {
         const skills = findSkills(sourceDir);
 
         if (skills.length === 0) {
-            return log(t('warn_no_skills', { sourceName }), styles.yellow);
+            ciError('no_skills', t('warn_no_skills', { sourceName }));
+            process.exit(1);
         }
 
         log(t('info_all_found', { sourceName, count: skills.length }), styles.bright);
         skills.forEach((skill, i) => {
-            const labelColor = skill.location === 'claude' ? styles.cyan :
-                skill.location === 'gemini' ? styles.yellow :
-                    skill.location === 'codex' ? styles.magenta : styles.bright;
-            const locationTag = labelColor + `[${skill.location}]`;
+            const labelColor = skill.location === 'claude'
+                ? styles.cyan
+                : skill.location === 'gemini'
+                    ? styles.yellow
+                    : skill.location === 'codex'
+                        ? styles.magenta
+                        : styles.bright;
+            const locationTag = `${labelColor}[${skill.location}]`;
             console.log(`  [${i + 1}] 📁 ${skill.name} ${locationTag}${styles.reset}`);
         });
 
-        if (!getCIMode()) {
+        if (!getCIMode() && !getJSONMode()) {
             const confirm = await askQuestion(t('prompt_all_confirm', { count: skills.length }));
             if (confirm.toLowerCase() !== 'y') {
                 return;
@@ -75,8 +79,8 @@ async function execute(args, config, options = {}) {
 
         let installedCount = 0;
         for (const skill of skills) {
-            await activateSkill(sourceName, skill.name, skill.path, options);
-            installedCount++;
+            const result = await activateSkill(sourceName, skill.name, skill.path, options);
+            installedCount += result.installedCount;
         }
 
         const summary = { sourceName, installed: installedCount, total: skills.length };
@@ -92,12 +96,14 @@ async function execute(args, config, options = {}) {
         const parts = query.split('/');
         sourceName = parts[0];
         skillName = parts.slice(1).join('/');
-    } else if (getCIMode()) {
-        // CI mode requires explicit source/skill argument
+    } else if (getCIMode() || getJSONMode()) {
         ciError('missing_argument', t('ci_error_use_requires_arg'));
         process.exit(2);
     } else {
-        // Interactive
+        if (sourceNames.length === 0) {
+            ciError('no_sources', t('error_no_sources'));
+            process.exit(1);
+        }
         log(t('header_source_list'), styles.bright);
         sourceNames.forEach((name, i) => {
             const info = config.sources[name];
@@ -106,42 +112,68 @@ async function execute(args, config, options = {}) {
         });
 
         const sourceIdx = await askQuestion(t('prompt_source_select'));
-        sourceName = sourceNames[parseInt(sourceIdx) - 1];
+        sourceName = sourceNames[parseInt(sourceIdx, 10) - 1];
 
         if (!sourceName) {
-            return log(t('error_invalid_choice'), styles.red);
+            log(t('error_invalid_choice'), styles.red);
+            process.exit(1);
         }
 
         const sourceDir = path.join(SOURCES_DIR, sourceName);
         const skills = findSkills(sourceDir);
 
         if (skills.length === 0) {
-            return log(t('warn_no_skills', { sourceName }), styles.yellow);
+            log(t('warn_no_skills', { sourceName }), styles.yellow);
+            process.exit(1);
         }
 
         log(t('header_skills_list', { sourceName }), styles.bright);
         skills.forEach((skill, i) => {
-            const labelColor = skill.location === 'claude' ? styles.cyan :
-                skill.location === 'gemini' ? styles.yellow :
-                    skill.location === 'codex' ? styles.magenta : styles.bright;
-            const locationTag = labelColor + `[${skill.location}]`;
+            const labelColor = skill.location === 'claude'
+                ? styles.cyan
+                : skill.location === 'gemini'
+                    ? styles.yellow
+                    : skill.location === 'codex'
+                        ? styles.magenta
+                        : styles.bright;
+            const locationTag = `${labelColor}[${skill.location}]`;
             console.log(`  [${i + 1}] 📁 ${skill.name} ${locationTag}${styles.reset}`);
         });
 
         const skillIdx = await askQuestion(t('prompt_skill_select'));
-        const indices = skillIdx.split(',').map(s => parseInt(s.trim()) - 1);
+        const indices = skillIdx.split(',').map(s => parseInt(s.trim(), 10) - 1);
+        let installed = 0;
 
         for (const idx of indices) {
             if (skills[idx]) {
-                await activateSkill(sourceName, skills[idx].name, skills[idx].path, options);
+                const result = await activateSkill(sourceName, skills[idx].name, skills[idx].path, options);
+                installed += result.installedCount;
             }
+        }
+
+        if (getJSONMode()) {
+            ciOutput({ sourceName, installed, selected: indices.length });
         }
         return;
     }
 
-    // Direct
-    await activateSkill(sourceName, skillName, null, options);
-}
+    if (sourceNames.length === 0) {
+        ciError('no_sources', t('error_no_sources'));
+        process.exit(1);
+    }
 
-module.exports = { execute };
+    const result = await activateSkill(sourceName, skillName, null, options);
+    if (result.notFound) {
+        ciError('skill_not_found', t('error_skill_not_found', { key: `${sourceName}/${skillName}` }));
+        process.exit(1);
+    }
+    if (getJSONMode()) {
+        ciOutput({
+            sourceName,
+            skillName,
+            installed: result.installedCount,
+            targets: result.targets
+        });
+    }
+}
 

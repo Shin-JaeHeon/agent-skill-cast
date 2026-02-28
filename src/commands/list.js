@@ -1,11 +1,11 @@
-const { log, styles, getJSONMode, ciOutput } = require('../core/utils');
-const { t } = require('../core/i18n');
-const { CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } = require('../core/skills');
-const { SOURCES_DIR } = require('../core/config'); // Needed for path resolution
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { log, styles, getJSONMode, ciOutput } from '../core/utils.js';
+import { t } from '../core/i18n.js';
+import { CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } from '../core/skills.js';
+import { SOURCES_DIR } from '../core/config.js';
 
-async function execute() {
+export async function execute() {
     const agentFolders = [
         { name: 'Claude', dir: CLAUDE_SKILLS_DIR, color: styles.cyan },
         { name: 'Codex', dir: CODEX_SKILLS_DIR, color: styles.magenta },
@@ -94,6 +94,4 @@ async function execute() {
         log(t('info_use_hint_general'), styles.cyan);
     }
 }
-
-module.exports = { execute };
 

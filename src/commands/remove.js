@@ -1,75 +1,82 @@
-const { log, styles, askQuestion, getCIMode, ciError } = require('../core/utils');
-const { t } = require('../core/i18n');
-const { getActiveSkills, CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } = require('../core/skills');
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { log, styles, askQuestion, getCIMode, getJSONMode, ciError, ciOutput } from '../core/utils.js';
+import { t } from '../core/i18n.js';
+import { getActiveSkills, CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } from '../core/skills.js';
 
-const { loadConfig } = require('../core/config');
-
-async function execute(args) {
+export async function execute(args) {
     let skillName = args[0];
     const activeSkills = getActiveSkills();
 
     if (!skillName) {
-        if (getCIMode()) {
+        if (getCIMode() || getJSONMode()) {
             ciError('missing_argument', t('ci_error_remove_requires_arg'));
             process.exit(2);
         }
         if (activeSkills.length === 0) {
-            return log(t('error_no_skill_to_remove'), styles.red);
+            log(t('error_no_skill_to_remove'), styles.red);
+            process.exit(1);
         }
         log(t('header_remove_skill'), styles.bright);
         activeSkills.forEach((item, i) => {
             console.log(`  [${i + 1}] ${item.key}`);
         });
         const idx = await askQuestion(t('prompt_number'));
-        const selected = activeSkills[parseInt(idx) - 1];
+        const selected = activeSkills[parseInt(idx, 10) - 1];
         skillName = selected?.key;
     }
 
+    const normalizedInput = skillName.toLowerCase();
+    const inputName = normalizedInput.includes('/') ? normalizedInput.split('/').pop() : normalizedInput;
     const targets = activeSkills.filter(item => {
-        return item.key === skillName || item.name.toLowerCase() === skillName.toLowerCase();
+        const name = item.name.toLowerCase();
+        return item.key === skillName || name === normalizedInput || name === inputName;
     });
 
     if (targets.length === 0) {
-        // Check if it's a local directory (not a symlink) in any agent folder
-        const { CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR } = require('../core/skills');
         const agentDirs = [CLAUDE_SKILLS_DIR, GEMINI_SKILLS_DIR, CODEX_SKILLS_DIR];
-
         let isLocalDir = false;
+
         for (const dir of agentDirs) {
             const potentialPath = path.join(dir, skillName);
-            if (fs.existsSync(potentialPath)) {
-                try {
-                    const stats = fs.lstatSync(potentialPath);
-                    if (stats.isDirectory() && !stats.isSymbolicLink()) {
-                        isLocalDir = true;
-                        break;
-                    }
-                } catch (e) { }
+            if (!fs.existsSync(potentialPath)) continue;
+            try {
+                const stats = fs.lstatSync(potentialPath);
+                if (stats.isDirectory() && !stats.isSymbolicLink()) {
+                    isLocalDir = true;
+                    break;
+                }
+            } catch {
+                // ignore
             }
         }
 
         if (isLocalDir) {
-            return log(t('error_cannot_remove_local_source'), styles.red); // Reusing the same key, though it says "local source file", close enough or I should update it?
-            // User asked for "로컬 파일이라 지워지지 않는다고 해". 
-            // The key error_cannot_remove_local_source = "Cannot remove local source file." / "로컬 파일이라 제거할 수 없습니다."
-            // This matches the requirement.
+            ciError('cannot_remove_local', t('error_cannot_remove_local_source'));
+            process.exit(1);
         }
 
-        return log(t('error_skill_not_found', { key: skillName }), styles.red);
+        ciError('skill_not_found', t('error_skill_not_found', { key: skillName }));
+        process.exit(1);
     }
 
+    let removed = 0;
     targets.forEach(targetItem => {
-        const agentDir = targetItem.agent === 'claude' ? CLAUDE_SKILLS_DIR :
-            targetItem.agent === 'gemini' ? GEMINI_SKILLS_DIR : CODEX_SKILLS_DIR;
+        const agentDir = targetItem.agent === 'claude'
+            ? CLAUDE_SKILLS_DIR
+            : targetItem.agent === 'gemini'
+                ? GEMINI_SKILLS_DIR
+                : CODEX_SKILLS_DIR;
 
         const destPath = path.join(agentDir, targetItem.name);
         if (fs.existsSync(destPath)) {
             fs.rmSync(destPath, { recursive: true, force: true });
+            removed++;
             log(t('success_skill_removed', { name: `${targetItem.name} (.${targetItem.agent})` }), styles.green);
         }
     });
-}
 
-module.exports = { execute };
+    if (getJSONMode()) {
+        ciOutput({ removed, skillName });
+    }
+}

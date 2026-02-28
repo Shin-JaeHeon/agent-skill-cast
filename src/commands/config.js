@@ -1,7 +1,6 @@
-const { log, styles, askQuestion, getCIMode, ciError } = require('../core/utils');
-const { t } = require('../core/i18n');
-const { saveConfig } = require('../core/config');
-const { initI18n } = require('../core/i18n'); // Needed to reload language
+import { log, styles, askQuestion, getCIMode, getJSONMode, ciError, ciOutput } from '../core/utils.js';
+import { t, initI18n } from '../core/i18n.js';
+import { saveConfig } from '../core/config.js';
 
 async function changeLanguage(config) {
     const ans = await askQuestion(t('prompt_lang_select'));
@@ -54,36 +53,40 @@ async function interactiveConfigMenu(config) {
     }
 }
 
-async function execute(args, config) {
+export async function execute(args, config) {
     const key = args[0];
     const value = args[1];
 
     if (!key) {
-        if (getCIMode()) {
+        if (getCIMode() || getJSONMode()) {
             ciError('missing_subcommand', t('ci_error_config_requires_subcommand'));
             process.exit(2);
         }
-        // Show usage first
         console.log(`\n${styles.bright}${t('usage_config')}${styles.reset}`);
-        // Then interactive menu
         await interactiveConfigMenu(config);
         return;
     }
 
     if (key === 'lang') {
+        if (!value) {
+            ciError('missing_argument', t('ci_error_config_requires_subcommand'));
+            process.exit(2);
+        }
         if (['en', 'ko'].includes(value)) {
             config.lang = value;
             saveConfig(config);
-            // 즉시 언어 변경 반영
             initI18n(value);
+            if (getJSONMode()) {
+                ciOutput({ key, value });
+                return;
+            }
             log(t('success_config_set', { key, value }), styles.green);
-        } else {
-            log(t('error_config_invalid'), styles.red);
+            return;
         }
-    } else {
-        // Direct display if some random key argument is passed, though mostly unused logic currently
-        console.log(JSON.stringify(config, null, 2));
+        ciError('invalid_argument', t('error_config_invalid'));
+        process.exit(2);
     }
-}
 
-module.exports = { execute };
+    ciError('invalid_argument', t('error_config_invalid'));
+    process.exit(2);
+}

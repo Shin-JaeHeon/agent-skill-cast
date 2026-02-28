@@ -1,17 +1,17 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { log, styles, ensureDir } = require('./utils');
-const { SOURCES_DIR } = require('./config');
-const { t } = require('./i18n');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { log, styles, ensureDir } from './utils.js';
+import { SOURCES_DIR } from './config.js';
+import { t } from './i18n.js';
 
 // Constants for skill directories in current project
-const CLAUDE_SKILLS_DIR = path.join(process.cwd(), '.claude', 'skills');
-const CODEX_SKILLS_DIR = path.join(process.cwd(), '.codex', 'skills');
-const GEMINI_SKILLS_DIR = path.join(process.cwd(), '.gemini', 'skills');
+export const CLAUDE_SKILLS_DIR = path.join(process.cwd(), '.claude', 'skills');
+export const CODEX_SKILLS_DIR = path.join(process.cwd(), '.codex', 'skills');
+export const GEMINI_SKILLS_DIR = path.join(process.cwd(), '.gemini', 'skills');
 
 // Helper: Link or copy
-function linkOrCopy(source, dest, isDirectory = false) {
+export function linkOrCopy(source, dest, isDirectory = false) {
     try {
         if (fs.existsSync(dest) || fs.lstatSync(dest)) {
             if (isDirectory) {
@@ -35,7 +35,7 @@ function linkOrCopy(source, dest, isDirectory = false) {
 }
 
 // findSkills implementation
-function findSkills(sourceDir) {
+export function findSkills(sourceDir) {
     if (!fs.existsSync(sourceDir)) return [];
     const skills = [];
     const addedPaths = new Set();
@@ -106,7 +106,7 @@ function findSkills(sourceDir) {
 }
 
 // _getActiveSkills implementation
-function getActiveSkills() {
+export function getActiveSkills() {
     const active = [];
     const agentFolders = [
         { dir: CLAUDE_SKILLS_DIR, type: 'claude' },
@@ -149,7 +149,7 @@ function getActiveSkills() {
     return active;
 }
 
-async function activateSkill(sourceName, skillName, skillPath = null, options = {}) {
+export async function activateSkill(sourceName, skillName, skillPath = null, options = {}) {
     const skillKey = `${sourceName}/${skillName}`;
     let sourcePath = skillPath;
 
@@ -169,12 +169,14 @@ async function activateSkill(sourceName, skillName, skillPath = null, options = 
             }
         }
         if (!sourcePath) {
-            return log(t('error_skill_not_found', { key: skillKey }), styles.red);
+            log(t('error_skill_not_found', { key: skillKey }), styles.red);
+            return { installedCount: 0, targets: [], notFound: true };
         }
     }
 
     if (!fs.existsSync(sourcePath)) {
-        return log(t('error_skill_not_found', { key: skillKey }), styles.red);
+        log(t('error_skill_not_found', { key: skillKey }), styles.red);
+        return { installedCount: 0, targets: [], notFound: true };
     }
 
     const agents = ['claude', 'gemini', 'codex'];
@@ -217,14 +219,7 @@ async function activateSkill(sourceName, skillName, skillPath = null, options = 
         const targetList = targets.map(t => `.${t}`).join(', ');
         log(`${styles.yellow}No target directories found among [${targetList}]. Create .claude, .gemini, or .codex folder first.${styles.reset}`);
     }
+
+    return { installedCount, targets, notFound: false };
 }
 
-module.exports = {
-    CLAUDE_SKILLS_DIR,
-    CODEX_SKILLS_DIR,
-    GEMINI_SKILLS_DIR,
-    findSkills,
-    getActiveSkills,
-    activateSkill,
-    linkOrCopy
-};

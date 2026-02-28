@@ -1,120 +1,204 @@
 #!/usr/bin/env node
 
-const { initI18n, t } = require('./core/i18n');
-const { loadConfig } = require('./core/config');
-const { styles, setCIMode } = require('./core/utils');
+import { Command } from 'commander';
+import { initI18n, t } from './core/i18n.js';
+import { loadConfig } from './core/config.js';
+import { deprecate } from './core/runtime.js';
+import { ciError, getJSONMode, setCIMode, styles } from './core/utils.js';
 
-// Command Handlers
-const cmdInit = require('./commands/init');
-const cmdSource = require('./commands/source');
-const cmdUse = require('./commands/use');
-const cmdList = require('./commands/list');
-const cmdRemove = require('./commands/remove');
-const cmdConfig = require('./commands/config');
+import { execute as initCommand } from './commands/init.js';
+import { execute as sourceCommand } from './commands/source.js';
+import { execute as useCommand } from './commands/use.js';
+import { execute as listCommand } from './commands/list.js';
+import { execute as removeCommand } from './commands/remove.js';
+import { execute as configCommand } from './commands/config.js';
 
-async function main() {
+const rawArgs = process.argv.slice(2);
+const isJSONMode = rawArgs.includes('--json');
+const isCIMode = rawArgs.includes('--ci') || isJSONMode || !process.stdin.isTTY;
+
+setCIMode(isCIMode, isJSONMode);
+
+function reloadConfigAndI18n() {
     const config = loadConfig();
     initI18n(config.lang);
+    return config;
+}
 
-    const rawArgs = process.argv.slice(2);
+reloadConfigAndI18n();
 
-    // CI mode detection
-    const isCIMode = rawArgs.includes('--ci')
-        || !process.stdin.isTTY;
-    const isJSONMode = rawArgs.includes('--json');
-    const isCopyMode = rawArgs.includes('--copy');
-    const isAllMode = rawArgs.includes('--all');
-
-    // Strip meta flags from args
-    const args = rawArgs.filter(a => a !== '--ci' && a !== '--json' && a !== '--copy' && a !== '--all');
-
-    setCIMode(isCIMode, isJSONMode);
-
-    const command = args[0];
-    const subCommand = args[1];
-    const param = args[2] || args[1];
-
-    // Dispatcher
-    switch (command) {
-        case 'init':
-            await cmdInit.execute();
-            break;
-
-        case 'source':
-            // Pass subCommand and remaining args to source handler
-            // source add <url> -> subCommand=add, args=[url]
-            // source list -> subCommand=list
-            const sourceArgs = args.slice(2);
-            await cmdSource.execute(subCommand, sourceArgs, config);
-            break;
-
-        case 'use':
-            // cast use <query> or cast use --claude
-            // args: [use, <query>] or [use, --flag]
-            // Let's parse flags delicately if needed, but existing logic was simple.
-            // Pass slice(1) to handler? handler expects `args` array and `config` and `options`
-            // Current CLI parser usage in original index.js was:
-            // main() { ... switch(command) ... case 'use': manager.use(args[1], options) }
-
-            // Reconstruct logic:
-            // We need to parse flags like --claude, --gemini
-            const useQuery = args[1]?.startsWith('-') ? null : args[1];
-            const useOptions = {
-                claude: args.includes('--claude'),
-                gemini: args.includes('--gemini'),
-                codex: args.includes('--codex'),
-                copy: isCopyMode,
-                all: isAllMode
-            };
-            // If args[1] was a flag, then query might be null, which triggers interactive mode in handler
-
-            // Wait, what if `cast use source/skill --claude`?
-            // args[1] = source/skill, args[2] = --claude
-
-            await cmdUse.execute([useQuery], config, useOptions);
-            break;
-
-        case 'sync':
-            // Shortcut for `source sync`? Or a separate sync command?
-            // Original: manager.sync()
-            // Let's redirect to source sync
-            await cmdSource.execute('sync', [], config);
-            break;
-
-        case 'list':
-        case 'ls':
-            // Original: manager.list() - this listed project skills
-            await cmdList.execute();
-            break;
-
-        case 'remove':
-        case 'rm':
-            // Original: manager.remove(args[1])
-            await cmdRemove.execute(args.slice(1));
-            break;
-
-        case 'config':
-            // cast config lang ko
-            await cmdConfig.execute(args.slice(1), config);
-            break;
-
-        default:
-            console.log(`
+function printUsage() {
+    console.log(`
 ${styles.bright}🧙‍♂️ Agent Skill Cast${styles.reset}
 ${t('usage_header')}
   cast init
   cast source add <url|path>
-  cast use [source/skill] [--all] [--copy]
-  cast sync
+  cast source list
+  cast source remove <name>
+  cast source sync
+  cast use <source>/<skill> [--all] [--copy] [--claude|--gemini|--codex]
   cast list
-  cast remove [skill]
+  cast remove <skill>
   cast config lang <en|ko>
 `);
-            break;
+}
+
+function withHandledErrors(handler) {
+    return async (...args) => {
+        try {
+            await handler(...args);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            ciError('execution_error', message);
+            process.exit(1);
+        }
+    };
+}
+
+function addMetaOptions(command) {
+    return command
+        .option('--ci', 'non-interactive mode')
+        .option('--json', 'machine-readable output');
+}
+
+function hasCommandArgument(args) {
+    return args.some(arg => !arg.startsWith('-'));
+}
+
+function hasHelpFlag(args) {
+    return args.includes('-h') || args.includes('--help');
+}
+
+function handleParseError(error) {
+    if (error?.code === 'commander.helpDisplayed') {
+        process.exit(0);
+    }
+
+    const argumentErrorCodes = new Set([
+        'commander.unknownOption',
+        'commander.missingArgument',
+        'commander.optionMissingArgument',
+        'commander.excessArguments',
+        'commander.unknownCommand',
+        'commander.invalidArgument'
+    ]);
+
+    const isArgumentError = argumentErrorCodes.has(error?.code);
+    const exitCode = isArgumentError ? 2 : 1;
+    const key = isArgumentError ? 'argument_error' : 'execution_error';
+    const message = error?.message || 'Unknown error';
+
+    ciError(key, message);
+    process.exit(exitCode);
+}
+
+async function main() {
+    const noCommand = !hasCommandArgument(rawArgs);
+    if (noCommand && !hasHelpFlag(rawArgs)) {
+        if (getJSONMode() || isCIMode) {
+            ciError('missing_command', t('ci_error_requires_command'));
+            process.exit(2);
+        }
+        if (rawArgs.length === 0) {
+            printUsage();
+            return;
+        }
+    }
+
+    const program = new Command();
+    program
+        .name('cast')
+        .description('Agent Skill Cast')
+        .allowExcessArguments(false)
+        .option('--ci', 'non-interactive mode')
+        .option('--json', 'machine-readable output');
+    if (!getJSONMode()) {
+        program.showHelpAfterError();
+    }
+
+    addMetaOptions(program.command('init').description('Initialize ASC in current project'))
+        .action(withHandledErrors(async () => {
+            reloadConfigAndI18n();
+            await initCommand();
+        }));
+
+    addMetaOptions(
+        program.command('source [subCommand] [value]').description('Source management')
+    ).action(withHandledErrors(async (subCommand, value) => {
+        const config = reloadConfigAndI18n();
+        const args = value === undefined ? [] : [value];
+        await sourceCommand(subCommand, args, config);
+    }));
+
+    addMetaOptions(
+        program
+            .command('use [query]')
+            .description('Install skills')
+            .option('--claude', 'install only to .claude/skills')
+            .option('--gemini', 'install only to .gemini/skills')
+            .option('--codex', 'install only to .codex/skills')
+            .option('--all', 'install all skills from source')
+            .option('--copy', 'copy skill instead of symlink')
+    ).action(withHandledErrors(async (query, options) => {
+        const config = reloadConfigAndI18n();
+        const useOptions = {
+            claude: Boolean(options.claude),
+            gemini: Boolean(options.gemini),
+            codex: Boolean(options.codex),
+            all: Boolean(options.all),
+            copy: Boolean(options.copy)
+        };
+        await useCommand([query], config, useOptions);
+    }));
+
+    addMetaOptions(program.command('list').description('Show installed skills'))
+        .action(withHandledErrors(async () => {
+            reloadConfigAndI18n();
+            await listCommand();
+        }));
+
+    addMetaOptions(program.command('remove [skill]').description('Remove installed skill'))
+        .action(withHandledErrors(async (skill) => {
+            reloadConfigAndI18n();
+            await removeCommand([skill]);
+        }));
+
+    addMetaOptions(program.command('config [key] [value]').description('Configuration'))
+        .action(withHandledErrors(async (key, value) => {
+            const cfg = reloadConfigAndI18n();
+            await configCommand([key, value], cfg);
+        }));
+
+    addMetaOptions(program.command('sync').description('Deprecated alias for `cast source sync`'))
+        .action(withHandledErrors(async () => {
+            deprecate("`cast sync` is deprecated. Use `cast source sync`.");
+            const config = reloadConfigAndI18n();
+            await sourceCommand('sync', [], config);
+        }));
+
+    addMetaOptions(program.command('ls').description('Deprecated alias for `cast list`'))
+        .action(withHandledErrors(async () => {
+            deprecate("`cast ls` is deprecated. Use `cast list`.");
+            await listCommand();
+        }));
+
+    addMetaOptions(program.command('rm [skill]').description('Deprecated alias for `cast remove`'))
+        .action(withHandledErrors(async (skill) => {
+            deprecate("`cast rm` is deprecated. Use `cast remove`.");
+            await removeCommand([skill]);
+        }));
+
+    program.exitOverride();
+
+    try {
+        await program.parseAsync(process.argv);
+    } catch (error) {
+        handleParseError(error);
     }
 }
 
 main().catch(err => {
-    console.error("Fatal Error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    ciError('execution_error', message);
     process.exit(1);
 });
